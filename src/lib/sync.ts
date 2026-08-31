@@ -42,10 +42,27 @@ const TABLE = 'mycal_state'
 
 // ------------------------------------------------------------------- merge
 
+/** A calendar with nothing in it. A device in this state has nothing worth
+ *  keeping, so it must never win a merge. */
+const isEmpty = (d: DB) => d.series.length === 0 && !d.school.enabled
+
+/**
+ * Which document's settings — school roster, density, start date — survive.
+ *
+ * An empty document ALWAYS loses. Signing in on a fresh phone used to hand it the
+ * win on recency alone, which quietly wiped the school setup on the laptop while
+ * leaving the blocks behind (those get unioned either way).
+ */
+export function remoteWins(local: DB, remote: DB): boolean {
+  if (isEmpty(remote) && !isEmpty(local)) return false
+  if (isEmpty(local) && !isEmpty(remote)) return true
+  return (remote.touchedAt ?? 0) > (local.touchedAt ?? 0)
+}
+
 /**
  * Union the two documents rather than picking a winner wholesale. Adding
  * Streetplay on the laptop and CCIR on the phone must not delete either — only a
- * genuine edit to the *same* thing falls back to "newest document wins".
+ * genuine edit to the *same* thing falls back to the winner above.
  */
 export function mergeDB(local: DB, remote: DB, remoteIsNewer: boolean): DB {
   const winner = remoteIsNewer ? remote : local
@@ -108,7 +125,7 @@ export async function startSync(session: Session) {
     const remote = await pull(userId)
     if (remote) {
       // Local wins ties: you're looking at this device right now.
-      const merged = mergeDB(getDB(), remote.data, remote.updatedAt > lastLocalTouch())
+      const merged = mergeDB(getDB(), remote.data, remoteWins(getDB(), remote.data))
       applyingRemote = true
       hydrate(merged)
       applyingRemote = false
@@ -136,7 +153,7 @@ export async function startSync(session: Session) {
           const body = JSON.stringify(next)
           if (body === lastPushed) return // our own write echoing back
           applyingRemote = true
-          hydrate(mergeDB(getDB(), next, true))
+          hydrate(mergeDB(getDB(), next, remoteWins(getDB(), next)))
           applyingRemote = false
           lastPushed = JSON.stringify(getDB())
           set({ lastSync: Date.now() })
@@ -156,11 +173,6 @@ export async function startSync(session: Session) {
     })
   }
 }
-
-/** When this device last changed something, surviving reloads. A document from
- *  before this field existed counts as fresh, so a first sync never lets a blank
- *  server copy flatten a calendar you've actually been using. */
-const lastLocalTouch = () => getDB().touchedAt ?? Date.now()
 
 // ---------------------------------------------------------------- session
 
