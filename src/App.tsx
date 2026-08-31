@@ -6,6 +6,7 @@ import { RescheduleSheet } from './components/RescheduleSheet'
 import { Onboarding } from './components/Onboarding'
 import { DayScheduleSheet } from './components/DayScheduleSheet'
 import { WeekStrip } from './components/WeekStrip'
+import { SyncButton, SyncSheet } from './components/SyncSheet'
 import { MOBILE, useMedia } from './lib/useMedia'
 import { buildOccurrences, openLoops, type Occurrence } from './lib/occurrences'
 import { DENSITY_STEPS, setDensity, useDB } from './lib/store'
@@ -23,6 +24,7 @@ export default function App() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [onboarding, setOnboarding] = useState(false)
   const [schedDay, setSchedDay] = useState<string | null>(null)
+  const [syncOpen, setSyncOpen] = useState(false)
   const isMobile = useMedia(MOBILE)
   const [mobileDay, setMobileDay] = useState(() => {
     const d = new Date().getDay()
@@ -140,6 +142,7 @@ export default function App() {
               ＋
             </button>
           </div>
+          <SyncButton onOpen={() => setSyncOpen(true)} />
           <button className="btn ghost" style={{ marginLeft: 10 }} onClick={() => setOnboarding(true)}>
             {db.school.enabled ? 'My classes' : 'Set up school'}
           </button>
@@ -251,6 +254,7 @@ export default function App() {
         />
       )}
       {onboarding && <Onboarding onClose={() => setOnboarding(false)} />}
+      {syncOpen && <SyncSheet onClose={() => setSyncOpen(false)} />}
       {schedDay && (
         <DayScheduleSheet
           date={schedDay}

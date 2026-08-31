@@ -632,6 +632,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .empty {
   position: absolute;
   inset: 0;
+  padding: 0 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -642,7 +643,8 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   text-align: center;
 }
 .empty b { color: var(--text-2); font-size: 14px; font-weight: 600; }
-.empty span { font-size: 12.5px; }
+.empty span { font-size: 12.5px; max-width: 34ch; line-height: 1.5; }
+.empty b, .empty span { text-wrap: balance; }
 
 .footer {
   flex: none;
@@ -926,3 +928,12 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   .preview { grid-template-columns: 1fr; }
   .onb .lede { font-size: 13px; }
 }
+
+.syncbtn { display: inline-flex; align-items: center; gap: 7px; }
+.syncbtn i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-3);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+}
+.syncbtn.on i { background: var(--ok); box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.14); }
+.syncbtn.bad i { background: #ff8f8f; box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.14); }

@@ -74,6 +74,12 @@ export function getDB(): DB {
   return db
 }
 
+/** Replace the whole document — used by sync when the server has newer state.
+ *  Marked so the sync layer can tell its own writes from yours. */
+export function hydrate(next: DB) {
+  commit({ ...next, version: 1 })
+}
+
 export function useDB(): DB {
   return useSyncExternalStore(subscribe, getDB, getDB)
 }

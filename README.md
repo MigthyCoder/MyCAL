@@ -5,11 +5,17 @@ A cinematic week calendar that acts as an external brain.
 Opens straight to your week. No dashboard, no AI planner, no productivity score.
 **If it matters, it lives on the calendar. If it isn't on the calendar, you didn't plan to do it.**
 
+**Live:** https://migthycoder.github.io/MyCAL/ — installable to a phone home
+screen, and it opens with no signal.
+
 ```bash
 npm run dev
 ```
 
-Then open http://localhost:5273. Everything is stored locally in your browser.
+Then open http://localhost:5273.
+
+Data lives in your browser by default. Cross-device sync is optional and off
+until you set it up — see [SYNC-SETUP.md](SYNC-SETUP.md).
 
 ---
 
@@ -129,8 +135,18 @@ wrote about one specific day of it. That's why Monday's SUCCESS can say
 "See Lohmann" while Tuesday's still says "Open", and why a schedule change ends
 the old series instead of erasing it.
 
+## On a phone
+
+Below 760px the seven columns collapse to a single day with a week strip on top —
+tap a day, or swipe the grid left and right. Each strip chip carries an amber dot
+if that day owes you an outcome and a blue bar if its bell schedule isn't the
+usual one, so you can see the week without opening it.
+
+Add it to your home screen and it runs full-screen, offline, with the schedule
+already in it.
+
 ## Not built yet
 
-- No sync — data lives in one browser. Export/import exists in `store.ts` but has no UI.
 - Recurring blocks you create yourself are weekly only (no "every other Tuesday").
 - Dragging a block onto a different day lifts it out of its series as a one-off.
+- The hover rail is mouse-only; on touch, add alongside via a block's `＋`.
