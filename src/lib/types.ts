@@ -94,6 +94,9 @@ export interface DB {
   /** Pixels per minute. Taller rows mean short blocks can hold a wrapped note
    *  instead of truncating it — that's the whole reason this is adjustable. */
   density: number
+  /** When this device last changed something. Missing on documents written
+   *  before sync existed, which are treated as fresh. */
+  touchedAt?: number
   /** The day you started using MyCAL. Nothing before this ever asks for an
    *  outcome — the calendar knows your year, but it wasn't watching yet. */
   startedOn: string

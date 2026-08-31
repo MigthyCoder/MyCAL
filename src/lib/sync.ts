@@ -157,12 +157,10 @@ export async function startSync(session: Session) {
   }
 }
 
-/** Rough "when did this device last change something" for tie-breaking. */
-let localTouch = Date.now()
-subscribe(() => {
-  if (!applyingRemote) localTouch = Date.now()
-})
-const lastLocalTouch = () => localTouch
+/** When this device last changed something, surviving reloads. A document from
+ *  before this field existed counts as fresh, so a first sync never lets a blank
+ *  server copy flatten a calendar you've actually been using. */
+const lastLocalTouch = () => getDB().touchedAt ?? Date.now()
 
 // ---------------------------------------------------------------- session
 

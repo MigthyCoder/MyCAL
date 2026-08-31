@@ -55,8 +55,10 @@ function load(): DB {
 let db: DB = load()
 const listeners = new Set<() => void>()
 
-function commit(next: DB) {
-  db = next
+function commit(next: DB, keepTouch = false) {
+  // touchedAt is what lets sync tell a device that's been edited recently from
+  // one that's just been sitting open on a stale copy.
+  db = keepTouch ? next : { ...next, touchedAt: Date.now() }
   try {
     localStorage.setItem(KEY, JSON.stringify(db))
   } catch {
@@ -77,7 +79,7 @@ export function getDB(): DB {
 /** Replace the whole document — used by sync when the server has newer state.
  *  Marked so the sync layer can tell its own writes from yours. */
 export function hydrate(next: DB) {
-  commit({ ...next, version: 1 })
+  commit({ ...next, version: 1 }, true)
 }
 
 export function useDB(): DB {
