@@ -2,11 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Served from https://<user>.github.io/MyCAL/, so assets need that prefix.
-// Override with BASE=/ when serving from a domain root.
-const base = process.env.BASE ?? '/MyCAL/'
-
-export default defineConfig({
+// Built for https://<user>.github.io/MyCAL/, so assets need that prefix — but dev
+// stays at the root so localhost URLs (and Supabase redirects) are plain.
+export default defineConfig(({ command }) => {
+  const base = process.env.BASE ?? (command === 'build' ? '/MyCAL/' : '/')
+  return {
   base,
   plugins: [
     react(),
@@ -34,8 +34,14 @@ export default defineConfig({
         // signal, which matters at school.
         globPatterns: ['**/*.{js,css,html,png,woff2}'],
         navigateFallback: `${base}index.html`,
+        // Without these a new deploy sits behind the old cached one until you
+        // close every tab. Take the update on the next load instead.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
       },
     }),
   ],
   server: { port: 5273 },
+  }
 })
