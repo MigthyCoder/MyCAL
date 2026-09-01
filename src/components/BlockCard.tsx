@@ -9,6 +9,8 @@ import { setOutcome, setSubtitle, patchOverride } from '../lib/store'
 export const RAIL_W = 34
 /** How much of the host block stays visible down the left of a rider. */
 export const SLIVER = 18
+/** And how much of the block underneath a cascaded one stays visible. */
+export const CASCADE_INSET = 16
 
 interface Props {
   placed: Placed
@@ -140,6 +142,9 @@ export function BlockCard({
   // Something cascaded on top of this block will cover its lower half, and half
   // a time range reads worse than none.
   const covered = placed.stacked > 0 && placed.stacked < placed.cols
+  const inset =
+    (placed.rider ? SLIVER : 0) +
+    (placed.stacked > 1 ? (placed.stacked - 1) * CASCADE_INSET : 0)
   const showWhen =
     !active && !tight && !covered && height >= 58 && (height >= 84 || !subLine)
 
@@ -156,10 +161,11 @@ export function BlockCard({
         top,
         height: grow ? 'auto' : height,
         minHeight: height,
-        // A rider is inset from the left so a stripe of whatever it's sitting on
-        // still shows — you can see it's *inside* Streetplay, not next to it.
-        left: `calc(${left * 100}% + ${3 + (placed.rider ? SLIVER : 0)}px)`,
-        width: `calc(${width * 100}% - ${6 + (placed.rider ? SLIVER : 0)}px)`,
+        // Inset from the left so a stripe of whatever is underneath still shows
+        // — you can see this is *on* something, not beside it. Pixels rather
+        // than a percentage, so the block keeps essentially its whole width.
+        left: `calc(${left * 100}% + ${3 + inset}px)`,
+        width: `calc(${width * 100}% - ${6 + inset}px)`,
         // base 2+layer · grown base 6 · rail 7 · rider 8+layer · grown rider 12 ·
         // open 20. A host never rises above its riders, and a cascaded block
         // always sits above the one it covers.

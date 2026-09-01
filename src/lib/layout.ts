@@ -49,8 +49,6 @@ interface Slot {
   stacked: number
 }
 
-/** How far each cascaded block is nudged right of the one it covers. */
-const STEP = 0.22
 /** Past this many deep a cascade stops being readable; split the column instead. */
 const MAX_CASCADE = 3
 
@@ -92,9 +90,13 @@ function packColumns(occs: Occurrence[]): Slot[] {
     const cascade = cols > 1 && cols <= MAX_CASCADE && starts.size === cluster.length
 
     if (cascade) {
+      // Every block keeps the full column. The nudge that reveals what's
+      // underneath is a fixed handful of pixels applied at render time, so a
+      // long commitment doesn't lose a fifth of its width to sit on top of
+      // something it merely brushes against.
       for (const o of cluster) {
         const col = colOf.get(o.key)!
-        out.push({ occ: o, left: col * STEP, width: 1 - col * STEP, cols, stacked: col + 1 })
+        out.push({ occ: o, left: 0, width: 1, cols, stacked: col + 1 })
       }
       cluster = []
       clusterEnd = -Infinity
