@@ -945,3 +945,11 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   border-left-color: hsl(var(--h) 60% 62% / 0.8);
 }
 .block.stacked::before { width: 3px; }
+
+.codefield {
+  font-size: 24px;
+  letter-spacing: 0.34em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 12px 11px;
+}

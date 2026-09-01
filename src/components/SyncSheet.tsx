@@ -5,6 +5,7 @@ import {
   onSyncChange,
   signIn,
   signOut,
+  verifyCode,
   type SyncState,
 } from '../lib/sync'
 import { Sheet } from './ui'
@@ -43,6 +44,7 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
   const sync = useSync()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -53,6 +55,7 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
     try {
       await signIn(email.trim())
       setSent(true)
+      setCode('')
     } catch (e) {
       setErr((e as Error).message)
     } finally {
@@ -91,6 +94,20 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
       onClose()
     } catch (e) {
       setTransferErr((e as Error).message)
+    }
+  }
+
+  const verify = async () => {
+    if (code.replace(/\D/g, '').length < 6) return
+    setBusy(true)
+    setErr(null)
+    try {
+      await verifyCode(email.trim(), code)
+      onClose()
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -178,14 +195,39 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
         </>
       ) : sent ? (
         <>
-          <div className="note">
-            <span className="k">Check your email</span>
-            A sign-in link is on its way to {email}. Open it on this device.
+          <h4>Code from your email</h4>
+          <input
+            className="field codefield"
+            autoFocus
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="000000"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            onKeyDown={(e) => { if (e.key === 'Enter') void verify() }}
+          />
+          <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.55 }}>
+            Sent to {email}. Type the six digits here rather than tapping the link —
+            on a phone the link opens your browser, which signs in the browser and
+            leaves this app logged out.
           </div>
+          {err && (
+            <div className="note" style={{ marginTop: 12, borderLeftColor: '#ff8f8f', color: '#ff8f8f' }}>
+              {err}
+            </div>
+          )}
           <div className="actions">
+            <button className="btn ghost" onClick={() => { setSent(false); setErr(null) }}>
+              Back
+            </button>
             <div className="spacer" />
-            <button className="btn ghost" onClick={() => setSent(false)}>Use another email</button>
-            <button className="btn solid" onClick={onClose}>Done</button>
+            <button
+              className="btn solid"
+              onClick={() => void verify()}
+              disabled={busy || code.length < 6}
+            >
+              {busy ? 'Checking…' : 'Sign in'}
+            </button>
           </div>
         </>
       ) : (
@@ -201,8 +243,8 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
             onKeyDown={(e) => { if (e.key === 'Enter') void send() }}
           />
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.55 }}>
-            No password — you get a link by email. Sign in on both devices with the
-            same address and they become the same calendar. What's already on this
+            No password — you get a six-digit code by email. Use the same address on
+            both devices and they become the same calendar. What's already on this
             device is kept and merged in.
           </div>
           {err && (
@@ -215,7 +257,7 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
             <div className="spacer" />
             <button className="btn ghost" onClick={onClose}>Cancel</button>
             <button className="btn solid" onClick={() => void send()} disabled={busy || !email.trim()}>
-              {busy ? 'Sending…' : 'Send me a link'}
+              {busy ? 'Sending…' : 'Email me a code'}
             </button>
           </div>
         </>

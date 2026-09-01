@@ -66,9 +66,27 @@ VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 ```
 
-## 5. Sign in on both devices
+## 5. Put the code in the email
 
-A **Sync** button appears in the header. Enter your email, open the link it sends,
+Sign-in uses a six-digit code, not a link — on a phone a link opens the browser,
+which signs the browser in and leaves an installed home-screen app logged out.
+
+**Authentication → Emails → Magic Link**, replace the body with:
+
+```html
+<h2>Your MyCAL sign-in code</h2>
+<p style="font-size:30px;letter-spacing:8px;margin:18px 0"><strong>{{ .Token }}</strong></p>
+<p>Type this into MyCAL. It expires in an hour.</p>
+<p style="color:#888;font-size:13px">On the same device you can also just
+<a href="{{ .ConfirmationURL }}">tap here</a>.</p>
+```
+
+`{{ .Token }}` is the part that matters. The link is kept as a convenience for
+desktop.
+
+## 6. Sign in on both devices
+
+A **Sync** button appears in the header. Enter your email, type the code it sends,
 and do the same on your phone with the same address. Whatever is already on each
 device gets merged in rather than overwritten.
 

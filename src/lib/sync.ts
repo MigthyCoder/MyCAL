@@ -192,7 +192,24 @@ export async function signIn(email: string) {
   if (!sb) throw new Error('Sync is not configured')
   const { error } = await sb.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.href },
+    options: { emailRedirectTo: window.location.href, shouldCreateUser: true },
+  })
+  if (error) throw error
+}
+
+/**
+ * Typing a code beats tapping a link on a phone. An installed home-screen app
+ * has its own storage, and a link in Mail always opens the browser instead — so
+ * the link signs in the browser and leaves the app you're holding logged out.
+ * A code goes wherever you type it.
+ */
+export async function verifyCode(email: string, token: string) {
+  const sb = await client()
+  if (!sb) throw new Error('Sync is not configured')
+  const { error } = await sb.auth.verifyOtp({
+    email,
+    token: token.replace(/\D/g, ''),
+    type: 'email',
   })
   if (error) throw error
 }
