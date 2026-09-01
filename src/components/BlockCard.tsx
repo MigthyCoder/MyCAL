@@ -226,8 +226,7 @@ export function BlockCard({
           <input
             ref={inputRef}
             autoFocus
-            className="field"
-            style={{ padding: '5px 8px', fontSize: 12 }}
+            className="field blocknote"
             value={draft}
             placeholder={
               isFlex

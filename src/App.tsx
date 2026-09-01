@@ -144,7 +144,7 @@ export default function App() {
           </div>
           <SyncButton onOpen={() => setSyncOpen(true)} />
           <button className="btn ghost" style={{ marginLeft: 10 }} onClick={() => setOnboarding(true)}>
-            {db.school.enabled ? 'My classes' : 'Set up school'}
+            {db.school.enabled ? (isMobile ? 'Classes' : 'My classes') : 'Set up school'}
           </button>
           <button
             className="btn solid"

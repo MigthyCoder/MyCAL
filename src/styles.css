@@ -892,9 +892,12 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   .nav { gap: 0; }
   .nav .range { min-width: 108px; font-size: 12.5px; }
   .zoom { display: none; }  /* row height is fixed on a phone */
-  /* Let the bar wrap to two rows rather than dropping Today / My classes. */
-  .nav { width: 100%; margin-left: 0; justify-content: flex-start; }
-  .nav .range { flex: 1; }
+  .nav { width: 100%; margin-left: 0; justify-content: flex-start; gap: 6px; }
+  .nav .range { flex: 1; min-width: 0; }
+  /* Week arrows are dead weight on a phone: swiping past either end of the strip
+     already moves weeks, and tapping the date opens a picker. Dropping them is
+     what lets the whole bar fit on one row. */
+  .nav .btn.icon { display: none; }
   .nav .btn.solid { padding: 7px 12px; }
   .nav .btn.ghost { margin-left: 4px !important; }
 
@@ -952,4 +955,77 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   text-align: center;
   font-variant-numeric: tabular-nums;
   padding: 12px 11px;
+}
+
+.blocknote { padding: 5px 8px; font-size: 12px; }
+
+/* ============================================== feels-like-an-app, on a phone */
+
+@media (max-width: 760px) {
+  /* iOS force-zooms the page whenever you focus an input smaller than 16px, and
+     never zooms back out. That single rule is most of the "why did it jump". */
+  input, textarea, select, .field, .blocknote {
+    font-size: 16px !important;
+  }
+  .codefield { font-size: 26px !important; }
+
+  /* No 300ms double-tap-zoom delay, no grey flash on every tap, no long-press
+     callout menu, no accidental text selection when you meant to drag. */
+  * {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;  /* kill the rubber-band on the whole page */
+  }
+  input, textarea, .block .sub, .block .title, .note { user-select: text; -webkit-user-select: text; }
+
+  .scroll { overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+
+  /* Press feedback, since there's no hover to tell you a thing is tappable. */
+  .btn:active, .chipday:active, .seg button:active, .swatch:active,
+  .dowpick button:active, .outcomerow button:active, .schedlist button:active,
+  .flexpick:active, .loops .chip:active {
+    transform: scale(0.97);
+    filter: brightness(1.15);
+  }
+  .block:active { filter: brightness(1.2); }
+
+  /* Sheets behave like sheets: they come up from the bottom, with a grab bar. */
+  .scrim { padding: 0; align-items: flex-end; }
+  .sheet {
+    width: 100%;
+    max-height: 88vh;
+    border-radius: 18px 18px 0 0;
+    padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+    animation: sheetup 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .sheet::before {
+    content: '';
+    display: block;
+    width: 38px;
+    height: 4px;
+    margin: 4px auto 14px;
+    border-radius: 2px;
+    background: var(--line-strong);
+  }
+  @keyframes sheetup {
+    from { transform: translateY(18px); opacity: 0.6; }
+    to { transform: none; opacity: 1; }
+  }
+
+  /* Thumb-sized targets. */
+  .btn { padding: 9px 11px; }
+  .btn.sm { padding: 7px 11px; font-size: 12.5px; }
+  .actions { gap: 10px; padding-top: 18px; }
+  .actions .btn { padding: 11px 16px; }
+  .dowpick button { width: 40px; padding: 10px 0; }
+  .swatch { width: 38px; height: 38px; }
+  .chipday { padding: 10px 0 8px; }
+  .field { padding: 12px 13px; }
 }
