@@ -8,6 +8,10 @@ export interface Placed {
   cols: number
   /** Sits on top of a bigger block rather than beside it. */
   rider: boolean
+  /** Laid over a partly-overlapping neighbour instead of splitting the column.
+   *  0 means not cascaded; otherwise it's the 1-based layer, so `stacked < cols`
+   *  says something is sitting on top of this one. */
+  stacked: number
   /** Key of the block it's riding on, when rider. */
   hostKey?: string
 }
@@ -42,7 +46,13 @@ interface Slot {
   left: number
   width: number
   cols: number
+  stacked: number
 }
+
+/** How far each cascaded block is nudged right of the one it covers. */
+const STEP = 0.22
+/** Past this many deep a cascade stops being readable; split the column instead. */
+const MAX_CASCADE = 3
 
 /** Google-Calendar-style column packing, for blocks that genuinely compete. */
 function packColumns(occs: Occurrence[]): Slot[] {
@@ -72,6 +82,25 @@ function packColumns(occs: Occurrence[]): Slot[] {
       colOf.set(o.key, col)
     }
     const cols = colEnds.length
+
+    // Two things that merely clip each other aren't competing for the hour —
+    // one just runs into the other. Cascading keeps both nearly full width and
+    // readable, where an even split makes two tall blocks into two slivers.
+    // It only works when the starts differ, since the block underneath is read
+    // by the strip of it showing above and to the left.
+    const starts = new Set(cluster.map((o) => o.startMin))
+    const cascade = cols > 1 && cols <= MAX_CASCADE && starts.size === cluster.length
+
+    if (cascade) {
+      for (const o of cluster) {
+        const col = colOf.get(o.key)!
+        out.push({ occ: o, left: col * STEP, width: 1 - col * STEP, cols, stacked: col + 1 })
+      }
+      cluster = []
+      clusterEnd = -Infinity
+      return
+    }
+
     for (const o of cluster) {
       const col = colOf.get(o.key)!
       const { s, e } = span(o)
@@ -86,7 +115,7 @@ function packColumns(occs: Occurrence[]): Slot[] {
         if (blocked) break
         reach++
       }
-      out.push({ occ: o, left: col / cols, width: (reach - col) / cols, cols })
+      out.push({ occ: o, left: col / cols, width: (reach - col) / cols, cols, stacked: 0 })
     }
     cluster = []
     clusterEnd = -Infinity
@@ -161,6 +190,7 @@ export function layoutDay(occs: Occurrence[]): Placed[] {
         left: hp.left + r.left * hp.width,
         width: r.width * hp.width,
         cols: r.cols,
+        stacked: r.stacked,
         rider: true,
         hostKey,
       })

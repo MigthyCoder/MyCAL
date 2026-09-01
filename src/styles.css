@@ -812,7 +812,6 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 /* A hovered block may run past its slot so a long note reads in full. It floats
    over what's below rather than shoving the grid around. */
 .block.grown {
-  z-index: 14;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
   border-color: hsl(var(--h) 55% 50% / 0.9);
 }
@@ -937,3 +936,12 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 }
 .syncbtn.on i { background: var(--ok); box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.14); }
 .syncbtn.bad i { background: #ff8f8f; box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.14); }
+
+/* A block laid over one it only partly overlaps. The shadow falls left, onto
+   what it's covering, so the two read as stacked cards rather than as one block
+   that got mysteriously narrower. */
+.block.stacked {
+  box-shadow: -7px 0 18px rgba(0, 0, 0, 0.5);
+  border-left-color: hsl(var(--h) 60% 62% / 0.8);
+}
+.block.stacked::before { width: 3px; }

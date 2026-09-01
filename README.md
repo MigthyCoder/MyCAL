@@ -91,13 +91,20 @@ WORK IN CAR
 CCIR Workshop 3
 ```
 
-**A block that fits inside a commitment rides on top of it**, as a frosted pane
-inset from the left so a stripe of the block underneath still shows. It does not
-split the column. A rider never gets a rail of its own — an overlap on an overlap
-isn't a thing. Side-by-side would claim the two things compete for the time —
-they don't; one is *where you are* and the other is *what you're doing there*.
-Blocks that genuinely clash (neither contains the other) still split into
-columns, and riders that clash with each other split within their host's width.
+Two blocks sharing time can mean three different things, so they look three
+different ways:
+
+| | Looks like | Because |
+|---|---|---|
+| One **fits inside** the other | frosted pane on top, inset left so a stripe of the host shows | one is *where you are*, the other is *what you're doing there* |
+| They **clip** each other | cascaded — the later one laid over the earlier, offset right, shadow falling left | neither contains the other; one just runs into the next |
+| They **start together** | split into even columns | genuinely competing for the same hour |
+
+Splitting was the original behaviour for all three, and it was wrong twice: two
+tall blocks at half width each is unreadable, and it claims a competition that
+isn't there. A cascaded block hides the clock on whatever it covers, since half a
+time range reads worse than none. A rider never gets a rail of its own — an
+overlap on an overlap isn't a thing.
 
 Tests and due dates get a chip on the title line rather than a plain note, because
 `AP CALC BC · TEST · Integrals unit 3` should not look like `AP CALC BC · Lasnier C12`.

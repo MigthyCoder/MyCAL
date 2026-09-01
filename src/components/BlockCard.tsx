@@ -137,13 +137,19 @@ export function BlockCard({
   const tight = !active && !compact && height < 46
   // The clock is redundant — you can read the time off the grid — so a note
   // always outranks it for the space.
-  const showWhen = !active && !tight && height >= 58 && (height >= 84 || !subLine)
+  // Something cascaded on top of this block will cover its lower half, and half
+  // a time range reads worse than none.
+  const covered = placed.stacked > 0 && placed.stacked < placed.cols
+  const showWhen =
+    !active && !tight && !covered && height >= 58 && (height >= 84 || !subLine)
 
   return (
     <div
       className={`block ${stateClass} ${compact ? 'short' : ''} ${tight ? 'tight' : ''} ${
         occ.series.schoolRole ? 'sch' : ''
-      } ${grow ? 'grown' : ''} ${placed.rider ? 'rider' : ''}`}
+      } ${grow ? 'grown' : ''} ${placed.rider ? 'rider' : ''} ${
+        placed.stacked ? 'stacked' : ''
+      }`}
       style={{
         // @ts-expect-error custom property
         '--h': hue,
@@ -154,9 +160,18 @@ export function BlockCard({
         // still shows — you can see it's *inside* Streetplay, not next to it.
         left: `calc(${left * 100}% + ${3 + (placed.rider ? SLIVER : 0)}px)`,
         width: `calc(${width * 100}% - ${6 + (placed.rider ? SLIVER : 0)}px)`,
-        // base 3 · grown base 4 · rail 5 · rider 6 · grown rider 10 · open 14.
-        // A host must never rise above the riders parked on it.
-        zIndex: active ? 14 : placed.rider ? (grow ? 10 : 6) : grow ? 4 : undefined,
+        // base 2+layer · grown base 6 · rail 7 · rider 8+layer · grown rider 12 ·
+        // open 20. A host never rises above its riders, and a cascaded block
+        // always sits above the one it covers.
+        zIndex: active
+          ? 20
+          : placed.rider
+            ? grow
+              ? 12
+              : 8 + placed.stacked
+            : grow
+              ? 6
+              : 2 + placed.stacked,
       }}
       onMouseEnter={(e) => onHover(true, e)}
       onMouseLeave={(e) => onHover(false, e)}
