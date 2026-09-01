@@ -1,5 +1,7 @@
-export const DAY_START_MIN = 6 * 60 // grid starts 6 AM
-export const DAY_END_MIN = 23 * 60 // ...and ends 11 PM
+// A full midnight-to-midnight day. Anything narrower means some hour of your
+// life simply has nowhere to be drawn — a meeting at 12 AM is still a meeting.
+export const DAY_START_MIN = 0
+export const DAY_END_MIN = 24 * 60
 export const GRID_MINUTES = DAY_END_MIN - DAY_START_MIN
 
 /** Local-date ISO key. Never use toISOString() here — that's UTC and it will
@@ -40,7 +42,8 @@ export function minutesNow(d = new Date()): number {
 }
 
 export function fmtTime(min: number): string {
-  const h24 = Math.floor(min / 60)
+  // 1440 is midnight ending the day, not noon — wrap before working out AM/PM.
+  const h24 = Math.floor(min / 60) % 24
   const m = min % 60
   const ampm = h24 >= 12 ? 'PM' : 'AM'
   const h = h24 % 12 === 0 ? 12 : h24 % 12
@@ -48,7 +51,7 @@ export function fmtTime(min: number): string {
 }
 
 export function fmtTimeShort(min: number): string {
-  const h24 = Math.floor(min / 60)
+  const h24 = Math.floor(min / 60) % 24
   const m = min % 60
   const h = h24 % 12 === 0 ? 12 : h24 % 12
   return m === 0 ? `${h}` : `${h}:${String(m).padStart(2, '0')}`
