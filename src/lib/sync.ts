@@ -232,6 +232,17 @@ export async function setPassword(password: string) {
   if (error) throw error
 }
 
+/** Locked out everywhere. Sends a one-time link — fine on a laptop, where the
+ *  browser opening it is exactly what you want. */
+export async function sendPasswordReset(email: string) {
+  const sb = await client()
+  if (!sb) throw new Error('Sync is not configured')
+  const { error } = await sb.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: window.location.href,
+  })
+  if (error) throw error
+}
+
 export async function signOut() {
   const sb = await client()
   await sb?.auth.signOut()

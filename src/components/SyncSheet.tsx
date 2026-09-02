@@ -7,6 +7,7 @@ import {
   signIn,
   signInWithPassword,
   setPassword as saveAccountPassword,
+  sendPasswordReset,
   signOut,
   verifyCode,
   type SyncState,
@@ -51,6 +52,21 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
   const [emailMode, setEmailMode] = useState(false)
   const [newPw, setNewPw] = useState('')
   const [pwSaved, setPwSaved] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+
+  const forgot = async () => {
+    if (!email.trim()) { setErr('Put your email in first.'); return }
+    setBusy(true)
+    setErr(null)
+    try {
+      await sendPasswordReset(email)
+      setResetSent(true)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const savePassword = async () => {
     if (newPw.length < 6) return
@@ -381,11 +397,26 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
             same calendar. No emailed links to chase — those are single-use and
             open the wrong app on a phone.
           </div>
+          {resetSent && (
+            <div className="note" style={{ marginTop: 12, borderLeftColor: 'var(--ok)' }}>
+              <span className="k">Reset sent</span>
+              Open the link from {email} <strong>on this device</strong>. It signs you
+              in, then set a new password from this same panel.
+            </div>
+          )}
           {err && (
             <div className="note" style={{ marginTop: 12, borderLeftColor: '#ff8f8f', color: '#ff8f8f' }}>
               {err}
             </div>
           )}
+          <button
+            className="btn ghost sm"
+            style={{ marginTop: 10 }}
+            onClick={() => void forgot()}
+            disabled={busy}
+          >
+            Forgot the password?
+          </button>
           {transfer}
           <div className="actions">
             <button className="btn ghost sm" onClick={() => { setEmailMode(true); setErr(null) }}>
