@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { DB, Marker, Outcome, Override, SchoolConfig, Series } from './types'
+import type { DB, Marker, Outcome, Override, Reminder, SchoolConfig, Series } from './types'
 import type { Occurrence } from './occurrences'
 
 const KEY = 'mycal.db.v1'
@@ -29,6 +29,7 @@ const emptyDB = (): DB => ({
   startedOn: todayKey(),
   series: [],
   overrides: [],
+  reminders: [],
   school: DEFAULT_SCHOOL,
   onboarded: false,
 })
@@ -45,6 +46,7 @@ function load(): DB {
       ...parsed,
       startedOn: parsed.startedOn || fresh.startedOn,
       density: parsed.density || fresh.density,
+      reminders: parsed.reminders ?? [],
       school: { ...DEFAULT_SCHOOL, ...(parsed.school ?? {}) },
     }
   } catch {
@@ -231,6 +233,30 @@ export function moveOccurrenceToDate(occ: Occurrence, toDate: string, startMin: 
 }
 
 // ------------------------------------------------------------------ misc
+
+// ------------------------------------------------------------- reminders
+
+export function addReminder(date: string, text: string) {
+  const r: Reminder = { id: uid(), date, text: text.trim(), done: false, createdAt: Date.now() }
+  commit({ ...db, reminders: [...db.reminders, r] })
+}
+
+export function toggleReminder(id: string) {
+  commit({
+    ...db,
+    reminders: db.reminders.map((r) => (r.id === id ? { ...r, done: !r.done } : r)),
+  })
+}
+
+export function editReminder(id: string, text: string) {
+  const t = text.trim()
+  if (!t) return removeReminder(id)
+  commit({ ...db, reminders: db.reminders.map((r) => (r.id === id ? { ...r, text: t } : r)) })
+}
+
+export function removeReminder(id: string) {
+  commit({ ...db, reminders: db.reminders.filter((r) => r.id !== id) })
+}
 
 export function setOnboarded(v: boolean) {
   commit({ ...db, onboarded: v })

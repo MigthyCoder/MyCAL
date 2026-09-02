@@ -26,6 +26,10 @@ interface Props {
   onAskReschedule: () => void
   onAddAlongside: () => void
   onDragStart: (e: React.MouseEvent, mode: 'move' | 'resize-top' | 'resize-bottom') => void
+  /** Held down and picked up on a touch screen. */
+  lifted: boolean
+  onPressStart: (e: React.TouchEvent) => void
+  onPressCancel: () => void
 }
 
 export function BlockCard({
@@ -40,6 +44,9 @@ export function BlockCard({
   onAskReschedule,
   onAddAlongside,
   onDragStart,
+  lifted,
+  onPressStart,
+  onPressCancel,
 }: Props) {
   const { occ, left, width } = placed
   const hue = CATEGORY_META[occ.series.category].hue
@@ -113,15 +120,19 @@ export function BlockCard({
                 ? 'past'
                 : ''
 
-  // What the subtitle line says depends on where the block is in its lifecycle.
-  let subLine: string | undefined
+  // What the subtitle says depends on where the block is in its lifecycle. Flex
+  // keeps BOTH lines once it has both — the gap between what you meant to do and
+  // what you did is the entire point of writing them down.
+  const subLines: string[] = []
   if (isFlex) {
-    if (occ.did) subLine = `Did: ${occ.did}`
-    else if (occ.planned) subLine = `Planned: ${occ.planned}`
+    if (occ.planned) subLines.push(`Planned: ${occ.planned}`)
+    if (occ.did) subLines.push(`Did: ${occ.did}`)
   } else {
     // A test beats a room number for the one line you get.
-    subLine = occ.marker?.label || occ.subtitle
+    const one = occ.marker?.label || occ.subtitle
+    if (one) subLines.push(one)
   }
+  const subLine = subLines[0]
 
   const movedTail =
     occ.state === 'rescheduled' && occ.movedTo
@@ -146,7 +157,7 @@ export function BlockCard({
     (placed.rider ? SLIVER : 0) +
     (placed.stacked > 1 ? (placed.stacked - 1) * CASCADE_INSET : 0)
   const showWhen =
-    !active && !tight && !covered && height >= 58 && (height >= 84 || !subLine)
+    !active && !tight && !covered && height >= 58 && (height >= 84 || subLines.length === 0)
 
   return (
     <div
@@ -154,7 +165,7 @@ export function BlockCard({
         occ.series.schoolRole ? 'sch' : ''
       } ${grow ? 'grown' : ''} ${placed.rider ? 'rider' : ''} ${
         placed.stacked ? 'stacked' : ''
-      }`}
+      } ${lifted ? 'lifted' : ''}`}
       style={{
         // @ts-expect-error custom property
         '--h': hue,
@@ -169,7 +180,9 @@ export function BlockCard({
         // base 2+layer · grown base 6 · rail 7 · rider 8+layer · grown rider 12 ·
         // open 20. A host never rises above its riders, and a cascaded block
         // always sits above the one it covers.
-        zIndex: active
+        zIndex: lifted
+          ? 30
+          : active
           ? 20
           : placed.rider
             ? grow
@@ -181,6 +194,9 @@ export function BlockCard({
       }}
       onMouseEnter={(e) => onHover(true, e)}
       onMouseLeave={(e) => onHover(false, e)}
+      onTouchStart={onPressStart}
+      onTouchMove={onPressCancel}
+      onTouchEnd={onPressCancel}
       onMouseDown={(e) => {
         if (active || occ.generated) return
         onDragStart(e, 'move')
@@ -217,7 +233,9 @@ export function BlockCard({
         {movedTail && !active ? (
           <span className="inlinesub moved">{movedTail}</span>
         ) : (
-          tight && subLine && <span className="inlinesub">{subLine}</span>
+          tight && subLines.length > 0 && (
+            <span className="inlinesub">{subLines[subLines.length - 1]}</span>
+          )
         )}
       </div>
 
@@ -287,7 +305,13 @@ export function BlockCard({
         </div>
       ) : (
         <>
-          {subLine && !compact && !tight && <div className="sub">{subLine}</div>}
+          {!compact &&
+            !tight &&
+            subLines.map((line, i) => (
+              <div className={`sub ${i > 0 ? 'did' : ''}`} key={i}>
+                {line}
+              </div>
+            ))}
           {occ.state === 'needs-outcome' && !compact && !tight && (
             <div className="needsflag">Needs outcome</div>
           )}

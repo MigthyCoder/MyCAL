@@ -47,6 +47,17 @@ places them correctly on every date:
 The `⋯` on any day header swaps that day's bell schedule, including **No school**
 for holidays and the CAASPP testing days the district hasn't dated yet.
 
+Flex keeps **both** lines once it has both:
+
+```
+FLEX
+Planned: Calc review
+Did: Friends
+```
+
+The gap between the two is the entire reason for writing them down, so writing
+what you did never replaces what you meant to do.
+
 - **SUCCESS** shows `Open` until you write something for that day.
 - **Flex** is a period you *have*, not a slot in the bell schedule — mark 3rd and
   4th (or whichever) as Flex in setup. Those are the only school blocks that ask
@@ -72,6 +83,8 @@ Glance first, interact second. The default state should tell you everything.
 | | |
 |---|---|
 | Drag empty time | new block |
+| **Long-press a block (phone)** | it lifts off the grid and follows your finger — drag up or down to move it in the day, or onto a day in the week strip to move it to that day |
+| **`+ to do`** | something for that day with no set time |
 | **Hover a commitment** | a `＋` rail fades in over its right edge, the `＋` tracking your cursor — click or drag there to add something alongside at that exact time. Nothing on the grid moves |
 | Click a block | inline note for **that day only** — type, Enter, done |
 | `＋` in an open block | same thing, from the keyboard-ish path |
@@ -141,6 +154,13 @@ The core idea: a **Series** is a definition, an **Override** is everything you
 wrote about one specific day of it. That's why Monday's SUCCESS can say
 "See Lohmann" while Tuesday's still says "Open", and why a schedule change ends
 the old series instead of erasing it.
+
+## Reminders
+
+Not everything has a time. "Call grandma" isn't a 30-minute block, and giving it
+one makes the grid lie about your evening. The strip above the grid holds untimed
+things for a day — tap `+ to do`, tap again to check it off. They sync like
+everything else.
 
 ## On a phone
 

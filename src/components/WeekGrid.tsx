@@ -16,6 +16,7 @@ import {
 import { BlockCard, RAIL_W } from './BlockCard'
 import { moveOccurrenceToDate, reshapeOccurrence } from '../lib/store'
 import { SCHEDULES, scheduleIdFor } from '../lib/bell'
+import { ReminderRow } from './ReminderRow'
 
 const HOURS = Array.from(
   { length: Math.floor((DAY_END_MIN - DAY_START_MIN) / 60) + 1 },
@@ -29,7 +30,13 @@ type Drag =
 
 interface Props {
   pxPerMin: number
+  reminders: import('../lib/types').Reminder[]
   isMobile: boolean
+  /** The whole week, even when the grid is only drawing one day of it — a chip
+   *  in the strip is how you drop something onto another day. */
+  weekAll: Date[]
+  /** Reports which strip chip a lifted block is over, so it can light up. */
+  onDropTarget: (i: number | null) => void
   onSwipeDay: (dir: 1 | -1) => void
   schoolEnabled: boolean
   dayOverrides: Record<string, string>
@@ -50,7 +57,10 @@ interface Props {
 
 export function WeekGrid({
   pxPerMin,
+  reminders,
   isMobile,
+  weekAll,
+  onDropTarget,
   onSwipeDay,
   schoolEnabled,
   dayOverrides,
@@ -75,6 +85,20 @@ export function WeekGrid({
   const [hoverKey, setHoverKey] = useState<string | null>(null)
   const [railY, setRailY] = useState(0)
   const touch = useRef<{ x: number; y: number } | null>(null)
+  // Long-press to lift a block, then drag it. `over` is the week-strip chip
+  // under your finger, which is how you move something to another day when the
+  // grid is only showing one.
+  const [lift, setLift] = useState<{
+    occ: Occurrence
+    startMin: number
+    grabMin: number
+    x: number
+    y: number
+    over: number | null
+  } | null>(null)
+  const liftRef = useRef(lift)
+  liftRef.current = lift
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const GRID_H = (DAY_END_MIN - DAY_START_MIN) * pxPerMin
   const dragRef = useRef<Drag | null>(null)
   dragRef.current = drag
@@ -172,6 +196,82 @@ export function WeekGrid({
     }
   }, [drag, days, onCreate, pointToTime, setActiveKey])
 
+  const cancelPress = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current)
+    pressTimer.current = null
+  }
+
+  const beginPress = (occ: Occurrence, e: React.TouchEvent) => {
+    if (!isMobile || occ.generated || e.touches.length !== 1) return
+    const t = e.touches[0]
+    const startX = t.clientX
+    const startY = t.clientY
+    cancelPress()
+    pressTimer.current = setTimeout(() => {
+      const pt = pointToTime(startX, startY)
+      if (!pt) return
+      if (navigator.vibrate) navigator.vibrate(12)
+      setLift({
+        occ,
+        startMin: occ.startMin,
+        grabMin: pt.min - occ.startMin,
+        x: startX,
+        y: startY,
+        over: null,
+      })
+    }, 420)
+  }
+
+  useEffect(() => {
+    if (!lift) return
+    const chipAt = (x: number, y: number) => {
+      const el = document.elementFromPoint(x, y)?.closest('.chipday')
+      if (!el) return null
+      const all = [...document.querySelectorAll('.chipday')]
+      const i = all.indexOf(el as Element)
+      return i === -1 ? null : i
+    }
+    const onMove = (e: TouchEvent) => {
+      e.preventDefault() // hold the page still while something is in the air
+      const t = e.touches[0]
+      const d = liftRef.current
+      if (!d) return
+      const over = chipAt(t.clientX, t.clientY)
+      const pt = over === null ? pointToTime(t.clientX, t.clientY) : null
+      setLift({
+        ...d,
+        x: t.clientX,
+        y: t.clientY,
+        over,
+        startMin: pt ? clampMin(snap(pt.min - d.grabMin)) : d.startMin,
+      })
+    }
+    const onEnd = () => {
+      const d = liftRef.current
+      setLift(null)
+      if (!d) return
+      const dur = d.occ.endMin - d.occ.startMin
+      if (d.over !== null) {
+        const target = dateKey(weekAll[d.over])
+        if (target !== d.occ.date) moveOccurrenceToDate(d.occ, target, d.occ.startMin)
+      } else if (d.startMin !== d.occ.startMin) {
+        reshapeOccurrence(d.occ, d.startMin, d.startMin + dur)
+      }
+    }
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onEnd)
+    window.addEventListener('touchcancel', onEnd)
+    return () => {
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onEnd)
+      window.removeEventListener('touchcancel', onEnd)
+    }
+  }, [lift, pointToTime, weekAll])
+
+  useEffect(() => {
+    onDropTarget(lift?.over ?? null)
+  }, [lift?.over, onDropTarget])
+
   const startBlockDrag = (
     occ: Occurrence,
     dayIndex: number,
@@ -248,6 +348,8 @@ export function WeekGrid({
         })}
       </div>
       )}
+
+      <ReminderRow days={days} reminders={reminders} template={template} isMobile={isMobile} />
 
       {empty && (
         <div className="empty" style={{ zIndex: 9 }}>
@@ -348,11 +450,14 @@ export function WeekGrid({
                   const live = drag?.kind === 'move' && drag.occ.key === p.occ.key
                   const rs = drag?.kind === 'resize' && drag.occ.key === p.occ.key
                   if (live && drag.day !== i) return null
+                  const inAir = lift?.occ.key === p.occ.key
                   const shown = live
                     ? { ...p, occ: { ...p.occ, startMin: drag.start, endMin: drag.start + (p.occ.endMin - p.occ.startMin) } }
                     : rs
                       ? { ...p, occ: { ...p.occ, startMin: drag.start, endMin: drag.end } }
-                      : p
+                      : inAir
+                        ? { ...p, occ: { ...p.occ, startMin: lift.startMin, endMin: lift.startMin + (p.occ.endMin - p.occ.startMin) } }
+                        : p
                   return (
                     <BlockCard
                       key={p.occ.key}
@@ -377,6 +482,9 @@ export function WeekGrid({
                         onCreate({ date: p.occ.date, startMin: p.occ.startMin, endMin: p.occ.endMin })
                       }}
                       onDragStart={(e, mode) => startBlockDrag(p.occ, i, e, mode)}
+                      lifted={lift?.occ.key === p.occ.key}
+                      onPressStart={(e) => beginPress(p.occ, e)}
+                      onPressCancel={cancelPress}
                     />
                   )
                 })}

@@ -71,6 +71,18 @@ export interface Override {
   afterNote?: string
 }
 
+/**
+ * Something to do on a day, with no particular time. "Call grandma" isn't a
+ * 30-minute block and pretending it is makes the grid lie about your evening.
+ */
+export interface Reminder {
+  id: string
+  date: string // 'YYYY-MM-DD'
+  text: string
+  done?: boolean
+  createdAt: number
+}
+
 /** Your roster, keyed by period number. Period 5 is SUCCESS, so it's never here.
  *  `flex` marks a period that's discretionary time rather than a class — those
  *  are the only blocks that ask what you actually used them for. */
@@ -102,6 +114,7 @@ export interface DB {
   startedOn: string
   series: Series[]
   overrides: Override[]
+  reminders: Reminder[]
   school: SchoolConfig
   onboarded: boolean
 }

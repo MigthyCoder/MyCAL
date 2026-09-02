@@ -15,6 +15,7 @@ export function WeekStrip({
   occurrences,
   schoolEnabled,
   dayOverrides,
+  dropTarget,
 }: {
   days: Date[]
   selected: number
@@ -23,6 +24,8 @@ export function WeekStrip({
   occurrences: Occurrence[]
   schoolEnabled: boolean
   dayOverrides: Record<string, string>
+  /** Index of the day a lifted block is currently hovering over. */
+  dropTarget: number | null
 }) {
   const openByDay = new Map<string, number>()
   for (const o of occurrences) {
@@ -42,7 +45,9 @@ export function WeekStrip({
         return (
           <button
             key={key}
-            className={`chipday ${i === selected ? 'on' : ''} ${today ? 'today' : ''} ${past ? 'past' : ''}`}
+            className={`chipday ${i === selected ? 'on' : ''} ${today ? 'today' : ''} ${
+              past ? 'past' : ''
+            } ${dropTarget === i ? 'droptarget' : ''}`}
             onClick={() => onSelect(i)}
           >
             <span className="dw">{fmtDayLabel(d)}</span>

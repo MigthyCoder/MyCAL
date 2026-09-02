@@ -1,8 +1,9 @@
-import type { DB, Override, Series } from './types'
+import type { DB, Override, Reminder, Series } from './types'
 
 /** A calendar with nothing in it. A device in this state has nothing worth
  *  keeping, so it must never win a merge. */
-export const isEmpty = (d: DB) => d.series.length === 0 && !d.school.enabled
+export const isEmpty = (d: DB) =>
+  d.series.length === 0 && (d.reminders?.length ?? 0) === 0 && !d.school.enabled
 
 /**
  * Which document's settings — school roster, density, start date — survive.
@@ -35,9 +36,14 @@ export function mergeDB(local: DB, remote: DB, remoteIsNewer: boolean): DB {
   for (const o of loser.overrides) overrides.set(ovKey(o), o)
   for (const o of winner.overrides) overrides.set(ovKey(o), o)
 
+  const reminders = new Map<string, Reminder>()
+  for (const r of loser.reminders ?? []) reminders.set(r.id, r)
+  for (const r of winner.reminders ?? []) reminders.set(r.id, r)
+
   return {
     ...winner,
     series: [...series.values()],
     overrides: [...overrides.values()],
+    reminders: [...reminders.values()],
   }
 }

@@ -25,6 +25,7 @@ export default function App() {
   const [onboarding, setOnboarding] = useState(false)
   const [schedDay, setSchedDay] = useState<string | null>(null)
   const [syncOpen, setSyncOpen] = useState(false)
+  const [dropTarget, setDropTarget] = useState<number | null>(null)
   const isMobile = useMedia(MOBILE)
   const [mobileDay, setMobileDay] = useState(() => {
     const d = new Date().getDay()
@@ -202,11 +203,15 @@ export default function App() {
           occurrences={occurrences}
           schoolEnabled={db.school.enabled}
           dayOverrides={db.school.dayOverrides}
+          dropTarget={dropTarget}
         />
       )}
 
       <WeekGrid
         pxPerMin={db.density}
+        reminders={db.reminders}
+        weekAll={days}
+        onDropTarget={setDropTarget}
         isMobile={isMobile}
         onSwipeDay={(dir) => {
           const next = mobileDay + dir
