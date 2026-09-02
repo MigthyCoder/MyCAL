@@ -84,11 +84,12 @@ Glance first, interact second. The default state should tell you everything.
 |---|---|
 | Drag empty time | new block |
 | **Long-press a block (phone)** | it lifts off the grid and follows your finger — drag up or down to move it in the day, or onto a day in the week strip to move it to that day |
-| **Tap a to-do** | `Done / Move / Drop`, inline on the line |
+| **Tick a to-do's box** | done — one tap, and tap again to undo |
+| **Tap a to-do's text** | its editor: rename, move, drop, delete |
 | **Hover a commitment** | a `＋` rail fades in over its right edge, the `＋` tracking your cursor — click or drag there to add something alongside at that exact time. Nothing on the grid moves |
 | Click a block | inline note for **that day only** — type, Enter, done |
 | `＋` in an open block | same thing, from the keyboard-ish path |
-| Double-click a block | full editor: markers, outcome, times, color |
+| Double-click a block | full editor: **rename**, markers, outcome, times, colour, location, duplicate, delete |
 | Click a date | expand that day; click again to collapse |
 | Click the date range | jump to any week |
 | `←` `→` `T` `Esc` | prev / next / today / collapse |
@@ -138,6 +139,12 @@ A note never gets an ellipsis. Three things keep it readable:
 
 ---
 
+## Renaming
+
+Every block's editor opens with its name as a text field. Renaming something that
+repeats asks which you meant — **every time** or **just this day** — and renaming
+a class writes back to your roster, so one edit fixes all 180 days of it.
+
 ## Layout
 
 ```
@@ -165,10 +172,12 @@ the text, and nothing claiming a slot it doesn't take. It lands after everything
 else you've got on that day, and you can drag it anywhere — including out of the
 way to fit something under it.
 
-It is still a task. Once it passes it reads `done?`, and one tap answers
-**Done / Move / Drop** right there on the line. Moving it keeps the history
-trail like any other reschedule. Two to-dos at the same moment stack instead of
-printing over each other.
+It is still a task. Once it passes it reads `done?`. The box on the left is a
+real checkbox — one tap finishes it, another undoes it — and the rest of the line
+is left free to be dragged. Tapping the text opens its editor for renaming,
+moving, dropping or deleting. Moving keeps the history trail like any other
+reschedule. Two to-dos at the same moment stack instead of printing over each
+other.
 
 Add one with `+ Block` → **To-do**.
 

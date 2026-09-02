@@ -1166,32 +1166,17 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   box-shadow: none;
 }
 .block.pin::before { width: 0; }
-.block.pin.open {
-  border-top-style: solid;
-  background: linear-gradient(90deg, hsl(var(--h) 48% 26% / 0.98), hsl(var(--h) 46% 20% / 0.98));
-}
-.pinactions { display: flex; align-items: center; gap: 4px; width: 100%; }
-.pinactions button {
-  flex: 1;
-  padding: 3px 4px;
-  border-radius: 5px;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: hsl(var(--h) 30% 88%);
-  background: rgba(255, 255, 255, 0.08);
-  transition: background .12s, color .12s;
-  white-space: nowrap;
-}
-.pinactions button:first-child { color: var(--ok); }
-.pinactions button:hover { background: rgba(255, 255, 255, 0.2); color: var(--text); }
+
 .pindot {
   flex: none;
-  width: 7px; height: 7px;
-  border-radius: 2px;
-  transform: rotate(45deg);
-  background: hsl(var(--h) 72% 64%);
+  width: 13px; height: 13px;
+  border-radius: 4px;
+  border: 1.5px solid hsl(var(--h) 60% 62%);
+  background: transparent;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, transform .12s;
 }
+.pindot:hover { background: hsl(var(--h) 60% 62% / 0.35); transform: scale(1.12); }
 .pintext {
   flex: 1;
   min-width: 0;
@@ -1213,12 +1198,13 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   background: linear-gradient(90deg, rgba(255, 176, 32, 0.24), rgba(255, 176, 32, 0.05));
   border-top-color: var(--warn);
 }
-.block.pin.needs .pindot { background: var(--warn); }
+.block.pin.needs .pindot { border-color: var(--warn); }
+.block.pin.needs .pindot:hover { background: rgba(255, 176, 32, 0.4); }
 .block.pin.needs .pinwhen { color: var(--warn); font-weight: 700; }
 
 .block.pin.finished { opacity: 0.5; }
 .block.pin.finished .pintext { text-decoration: line-through; }
-.block.pin.finished .pindot { background: var(--ok); border-radius: 50%; transform: none; }
+.block.pin.finished .pindot { background: var(--ok); border-color: var(--ok); }
 .block.pin.finished::after { content: none; }
 .block.pin.dropped { opacity: 0.38; background: none; }
 .block.pin.dropped .pintext { text-decoration: line-through; }
@@ -1228,9 +1214,19 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .block.pin.active, .block.pin.lifted { border-radius: 8px; }
 
 @media (max-width: 760px) {
-  .pinactions button { font-size: 12px; padding: 6px 4px; }
   .pintext { font-size: 14px; }
   .pinwhen { font-size: 12px; }
-  .pindot { width: 9px; height: 9px; }
+  .pindot { width: 20px; height: 20px; border-radius: 6px; }
   .block.pin { padding: 0 12px 0 10px; gap: 9px; }
 }
+
+.titlefield {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 10px 12px;
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.04);
+}
+.titlefield:hover { border-color: var(--line-mid); }
+.titlefield:focus { border-color: var(--line-strong); background: var(--bg); }

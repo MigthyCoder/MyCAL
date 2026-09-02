@@ -3,6 +3,8 @@ import type { Occurrence } from '../lib/occurrences'
 import type { Category, MarkerType } from '../lib/types'
 import {
   archiveSeries,
+  duplicateOccurrence,
+  renameOccurrence,
   clearOutcome,
   deleteSeries,
   patchOverride,
@@ -43,6 +45,9 @@ export function Inspector({
   const [did, setDid] = useState(occ.did ?? '')
   const [mType, setMType] = useState<MarkerType | 'none'>(occ.marker?.type ?? 'none')
   const [mLabel, setMLabel] = useState(occ.marker?.label ?? '')
+  const [title, setTitle] = useState(occ.title)
+  const [titleScope, setTitleScope] = useState<'series' | 'day'>('series')
+  const [location, setLocation] = useState(s.location ?? '')
   const [overlap, setOverlap] = useState(s.overlapReason ?? '')
   const [start, setStart] = useState(occ.startMin)
   const [end, setEnd] = useState(occ.endMin)
@@ -50,6 +55,10 @@ export function Inspector({
   /** Everything typed into this sheet, written back. The outcome buttons call
    *  this too — otherwise hitting "Finished" would silently discard your note. */
   const persist = () => {
+    renameOccurrence(occ, title, titleScope)
+    if (!occ.generated && (s.location ?? '') !== location.trim()) {
+      updateSeries(s.id, { location: location.trim() || undefined })
+    }
     if (!isFlex) setSubtitle(occ, subtitle)
     else {
       const reported = did.trim()
@@ -91,8 +100,28 @@ export function Inspector({
 
   return (
     <Sheet onClose={saveAndClose}>
-      <h3>{occ.title}</h3>
-      <div className="meta">
+      <input
+        className="field titlefield"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Name"
+        onKeyDown={(e) => { if (e.key === 'Enter') saveAndClose() }}
+      />
+      {/* Renaming a repeating thing almost always means renaming all of it, but
+          not always — so say which, rather than guessing. */}
+      {(s.recurrence || occ.generated) && title.trim() !== occ.title && (
+        <div style={{ marginTop: 8 }}>
+          <Seg
+            value={titleScope}
+            options={[
+              { value: 'series' as const, label: 'Rename every time' },
+              { value: 'day' as const, label: 'Just this day' },
+            ]}
+            onChange={setTitleScope}
+          />
+        </div>
+      )}
+      <div className="meta" style={{ marginTop: 10 }}>
         {day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} ·{' '}
         {fmtRange(occ.startMin, occ.endMin)}
         {s.recurrence ? ' · repeats weekly' : ''}
@@ -154,12 +183,28 @@ export function Inspector({
         </>
       )}
 
-      <h4>Time</h4>
+      <h4>{occ.pin ? 'When' : 'Time'}</h4>
       <div className="row">
-        <TimeField value={start} onChange={setStart} />
-        <span style={{ color: 'var(--text-3)' }}>to</span>
-        <TimeField value={end} onChange={setEnd} />
+        <TimeField value={start} onChange={(v) => { setStart(v); if (occ.pin) setEnd(v) }} />
+        {!occ.pin && (
+          <>
+            <span style={{ color: 'var(--text-3)' }}>to</span>
+            <TimeField value={end} onChange={setEnd} />
+          </>
+        )}
       </div>
+
+      {!occ.generated && !occ.pin && (
+        <>
+          <h4>Where</h4>
+          <input
+            className="field"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Room C12, Ruthvik's house, the car…"
+          />
+        </>
+      )}
 
       {occ.requiresOutcome && !isFlex && (
         <>
@@ -194,7 +239,7 @@ export function Inspector({
         </>
       )}
 
-      {!occ.generated && (
+      {!occ.generated && !occ.pin && (
         <>
           <h4>Riding alongside</h4>
           <input
@@ -210,7 +255,7 @@ export function Inspector({
         </>
       )}
 
-      {!occ.generated && <><h4>Series</h4>
+      {!occ.generated && <><h4>{occ.pin ? 'To-do' : 'Series'}</h4>
       <div className="row wrap" style={{ gap: 12 }}>
         <CategoryPicker value={s.category} onChange={(c: Category) => updateSeries(s.id, { category: c })} />
         <div className="grow">
@@ -242,12 +287,21 @@ export function Inspector({
       )}
 
       <div className="actions">
-        <button
-          className="btn danger"
-          onClick={() => { patchOverride(s.id, occ.date, { cancelled: true }); onClose() }}
-        >
-          {occ.generated ? 'Not today' : 'Skip this day'}
-        </button>
+        {!occ.generated && (
+          <button className="btn ghost" onClick={() => { persist(); duplicateOccurrence(occ); onClose() }}>
+            Duplicate
+          </button>
+        )}
+        {/* Skipping only means something for a thing that comes back. For a
+            one-off it's just a more confusing Delete. */}
+        {(s.recurrence || occ.generated) && (
+          <button
+            className="btn danger"
+            onClick={() => { patchOverride(s.id, occ.date, { cancelled: true }); onClose() }}
+          >
+            {occ.generated ? 'Not today' : 'Skip this day'}
+          </button>
+        )}
         {!occ.generated && (
           <button
             className="btn danger"

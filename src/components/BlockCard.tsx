@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Placed } from '../lib/layout'
 import { CATEGORY_META, FLEX_OPTIONS } from '../lib/seed'
 import { DAY_START_MIN, fmtRange, fmtTime, parseKey } from '../lib/time'
-import { setOutcome, setSubtitle, patchOverride } from '../lib/store'
+import { clearOutcome, setOutcome, setSubtitle, patchOverride } from '../lib/store'
 
 /** Width the hover rail claims, in px. The block slides left by this much so
  *  there's somewhere to click to add something beside it. */
@@ -172,7 +172,7 @@ export function BlockCard({
         occ.series.schoolRole ? 'sch' : ''
       } ${grow ? 'grown' : ''} ${placed.rider ? 'rider' : ''} ${
         placed.stacked ? 'stacked' : ''
-      } ${lifted ? 'lifted' : ''} ${occ.pin ? 'pin' : ''} ${active ? 'open' : ''}`}
+      } ${lifted ? 'lifted' : ''} ${occ.pin ? 'pin' : ''}`}
       style={{
         // @ts-expect-error custom property
         '--h': hue,
@@ -210,6 +210,7 @@ export function BlockCard({
       }}
       onClick={(e) => {
         e.stopPropagation()
+        if (occ.pin) { onOpenInspector(); return }
         if (!active) onActivate()
       }}
       onDoubleClick={(e) => {
@@ -224,30 +225,34 @@ export function BlockCard({
         </>
       )}
 
-      {occ.pin &&
-        (active ? (
-          // Actions live on the line. Growing a line into a card would shove the
-          // to-dos stacked under it out of the way for no reason.
-          <div className="pinactions" onMouseDown={(e) => e.stopPropagation()}>
-            <button onClick={() => { setOutcome(occ, 'finished'); onDismiss() }}>✓ Done</button>
-            <button onClick={onAskReschedule}>Move</button>
-            <button onClick={() => { setOutcome(occ, 'dropped'); onDismiss() }}>Drop</button>
-          </div>
-        ) : (
-          <>
-            <i className="pindot" />
-            <span className="pintext">{occ.title}</span>
-            <span className="pinwhen">
-              {occ.state === 'rescheduled' && occ.movedTo
-                ? `→ ${parseKey(occ.movedTo.date).toLocaleDateString(undefined, { weekday: 'short' })}`
-                : occ.state === 'needs-outcome'
-                  ? 'done?'
-                  : occ.state === 'finished' || occ.state === 'dropped'
-                    ? ''
-                    : fmtTime(occ.startMin)}
-            </span>
-          </>
-        ))}
+      {occ.pin && (
+        <>
+          {/* The dot is a checkbox: one tap is the whole answer most of the time.
+              Everything else — rename, move, drop, delete — is behind the text,
+              which leaves the line free to be dragged. */}
+          <button
+            className="pindot"
+            title={occ.outcome === 'finished' ? 'Done — tap to undo' : 'Mark done'}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (occ.outcome) clearOutcome(occ)
+              else setOutcome(occ, 'finished')
+            }}
+          />
+          <span className="pintext">{occ.title}</span>
+          <span className="pinwhen">
+            {occ.state === 'rescheduled' && occ.movedTo
+              ? `→ ${parseKey(occ.movedTo.date).toLocaleDateString(undefined, { weekday: 'short' })}`
+              : occ.state === 'needs-outcome'
+                ? 'done?'
+                : occ.state === 'finished' || occ.state === 'dropped'
+                  ? ''
+                  : fmtTime(occ.startMin)}
+          </span>
+        </>
+      )}
 
       {occ.overlapReason && !compact && !tight && <div className="why">{occ.overlapReason}</div>}
 

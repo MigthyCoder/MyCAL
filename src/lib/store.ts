@@ -188,6 +188,51 @@ export function setMarker(occ: Occurrence, marker: Marker | null) {
   else patchOverride(occ.series.id, occ.date, { marker })
 }
 
+/**
+ * Rename. What that means depends on what you're renaming: a class is stored in
+ * your roster, so renaming it there fixes every day of the year at once, while a
+ * one-off is just itself.
+ */
+export function renameOccurrence(occ: Occurrence, title: string, scope: 'series' | 'day') {
+  const t = title.trim()
+  if (!t || t === occ.title) return
+  if (scope === 'day') {
+    patchOverride(occ.series.id, occ.date, { title: t })
+    return
+  }
+  const period = /^school:p(\d)$/.exec(occ.series.id)?.[1]
+  if (period && db.school.classes[period]) {
+    setSchool({
+      classes: { ...db.school.classes, [period]: { ...db.school.classes[period], title: t } },
+    })
+    return
+  }
+  if (occ.generated) {
+    // SUCCESS, Lunch, Advisory: no roster entry to change, so this day only.
+    patchOverride(occ.series.id, occ.date, { title: t })
+    return
+  }
+  updateSeries(occ.series.id, { title: t })
+}
+
+/** Same thing, same day, one copy. */
+export function duplicateOccurrence(occ: Occurrence): Series {
+  return addSeries({
+    title: `${occ.title} (copy)`,
+    kind: occ.series.kind,
+    category: occ.series.category,
+    schoolRole: null,
+    defaultSubtitle: occ.subtitle,
+    location: occ.series.location,
+    startMin: occ.startMin,
+    endMin: occ.endMin,
+    recurrence: null,
+    anchorDate: occ.date,
+    ...(occ.series.pin ? { pin: true } : {}),
+    ...(occ.series.overlapReason ? { overlapReason: occ.series.overlapReason } : {}),
+  })
+}
+
 // --------------------------------------------------------------- outcomes
 
 export function setOutcome(occ: Occurrence, outcome: Outcome, note?: string) {
