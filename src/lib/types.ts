@@ -84,6 +84,7 @@ export interface Override {
   movedTo?: { date: string; startMin: number } // history pointer, never cleared
 
   // --- flex: planned vs did ---
+  /** @deprecated single-plan shape; migrated into `notes` on load, in order */
   planned?: string
   did?: string
 

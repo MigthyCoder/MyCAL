@@ -4,6 +4,16 @@ import type { Occurrence } from './occurrences'
 
 const KEY = 'mycal.db.v1'
 
+// Declared up here on purpose: load() runs at module init and the migrations it
+// calls need this. Below the call site it's in the temporal dead zone, and the
+// resulting throw is swallowed by load()'s catch — which quietly hands back an
+// empty calendar instead of yours.
+export const uid = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36)
+
+
 export const DEFAULT_SCHOOL: SchoolConfig = {
   enabled: false,
   startDate: '2026-08-06',
@@ -72,35 +82,45 @@ function migrateReminders(parsed: DB): Pick<DB, 'series' | 'overrides' | 'remind
  *  which happens to be labelled. */
 function migrateNotes(overrides: Override[]): Override[] {
   return overrides.map((o) => {
-    if (o.notes || (!o.subtitle && !o.marker)) return o
-    const notes: DayNote[] = []
+    if (!o.subtitle && !o.marker && !o.planned) return o
+    const notes: DayNote[] = [...(o.notes ?? [])]
+    // A Flex plan is a list in priority order, so the old single plan leads it.
+    if (o.planned) notes.unshift({ id: uid(), text: o.planned })
     if (o.marker) notes.push({ id: uid(), text: o.marker.label, marker: o.marker.type })
     if (o.subtitle) notes.push({ id: uid(), text: o.subtitle })
-    const { subtitle: _s, marker: _m, ...rest } = o
+    const { subtitle: _s, marker: _m, planned: _p, ...rest } = o
     return { ...rest, notes }
   })
 }
 
 function load(): DB {
   const fresh = emptyDB()
+  let parsed: DB
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return fresh
-    const parsed = JSON.parse(raw) as DB
+    parsed = JSON.parse(raw) as DB
     if (parsed.version !== 1) return fresh
-    return {
-      ...fresh,
-      ...parsed,
-      startedOn: parsed.startedOn || fresh.startedOn,
-      density: parsed.density || fresh.density,
-      ...(() => {
-        const m = migrateReminders(parsed)
-        return { ...m, overrides: migrateNotes(m.overrides) }
-      })(),
-      school: { ...DEFAULT_SCHOOL, ...(parsed.school ?? {}) },
-    }
   } catch {
     return fresh
+  }
+
+  const base: DB = {
+    ...fresh,
+    ...parsed,
+    startedOn: parsed.startedOn || fresh.startedOn,
+    density: parsed.density || fresh.density,
+    school: { ...DEFAULT_SCHOOL, ...(parsed.school ?? {}) },
+  }
+
+  try {
+    const migrated = migrateReminders(parsed)
+    return { ...base, ...migrated, overrides: migrateNotes(migrated.overrides) }
+  } catch (err) {
+    // Your calendar is never the thing that gets sacrificed to a migration bug.
+    // Worst case the old shape renders a bit oddly; it does not disappear.
+    console.error('MyCAL: migration failed, keeping stored data unchanged', err)
+    return base
   }
 }
 
@@ -138,10 +158,6 @@ export function useDB(): DB {
   return useSyncExternalStore(subscribe, getDB, getDB)
 }
 
-export const uid = () =>
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36)
 
 // ---------------------------------------------------------------- series
 
@@ -287,8 +303,10 @@ export function reschedule(
   toDate: string,
   toStartMin: number,
   why?: string,
+  /** Fit the slot you dropped it into rather than keeping its old length. */
+  durationMin?: number,
 ): Series {
-  const duration = occ.endMin - occ.startMin
+  const duration = durationMin ?? occ.endMin - occ.startMin
   const copy = addSeries({
     title: occ.title,
     kind: occ.series.kind,
@@ -307,6 +325,31 @@ export function reschedule(
     ...(why?.trim() ? { outcomeNote: why.trim() } : {}),
   })
   return copy
+}
+
+/**
+ * Move a task into a free school period rather than on top of one.
+ *
+ * Flex is already the slot for doing your own work, so laying a block over it
+ * says nothing and looks like a mistake. The task becomes what that Flex is
+ * *for* — its plan — and the original block still records that it moved.
+ */
+export function rescheduleIntoPeriod(
+  occ: Occurrence,
+  target: Occurrence,
+  why?: string,
+  /** Where in that period's plan it goes. A period you're moving work into
+   *  usually already has work in it. */
+  priority: 'first' | 'after' = 'after',
+) {
+  const item = newNote(occ.title)
+  const plan = priority === 'first' ? [item, ...target.notes] : [...target.notes, item]
+  setDayNotes(target, plan)
+  patchOverride(occ.series.id, occ.date, {
+    outcome: 'rescheduled',
+    movedTo: { date: target.date, startMin: target.startMin },
+    ...(why?.trim() ? { outcomeNote: why.trim() } : {}),
+  })
 }
 
 // ------------------------------------------------------------ move/resize

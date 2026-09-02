@@ -35,7 +35,7 @@ export function Inspector({
     occ.notes.length ? occ.notes.map((n) => ({ ...n })) : [newNote()],
   )
   const [after, setAfter] = useState(occ.afterNote ?? '')
-  const [planned, setPlanned] = useState(occ.planned ?? '')
+
   const [did, setDid] = useState(occ.did ?? '')
   const [title, setTitle] = useState(occ.title)
   const [titleScope, setTitleScope] = useState<'series' | 'day'>('series')
@@ -54,8 +54,8 @@ export function Inspector({
     if (!isFlex) setDayNotes(occ, notes)
     else {
       const reported = did.trim()
+      setDayNotes(occ, notes)
       patchOverride(s.id, occ.date, {
-        planned: planned.trim() || undefined,
         did: reported || undefined,
         // Reporting on a Flex that's already passed resolves it outright.
         ...(reported && occ.state !== 'future' && occ.state !== 'now'
@@ -127,11 +127,73 @@ export function Inspector({
 
       {isFlex ? (
         <>
-          <h4>Planned</h4>
-          <input className="field" value={planned} onChange={(e) => setPlanned(e.target.value)} placeholder="What you meant to use flex for" />
+          <h4>Planned — in the order you'll do them</h4>
+          <div className="notelist">
+            {notes.map((n, i) => (
+              <div className="noterow plan" key={n.id}>
+                <span className="rank">{i + 1}</span>
+                <input
+                  className="field"
+                  value={n.text}
+                  autoFocus={i === 0}
+                  onChange={(e) =>
+                    setNotes((ns) => ns.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))
+                  }
+                  placeholder="Calc homework"
+                  onKeyDown={(e) => { if (e.key === 'Enter') setNotes((ns) => [...ns, newNote()]) }}
+                />
+                <button
+                  className="rowx"
+                  title="Higher priority"
+                  disabled={i === 0}
+                  onClick={() =>
+                    setNotes((ns) => {
+                      const c = [...ns]
+                      ;[c[i - 1], c[i]] = [c[i], c[i - 1]]
+                      return c
+                    })
+                  }
+                >
+                  ↑
+                </button>
+                <button
+                  className="rowx"
+                  title="Lower priority"
+                  disabled={i === notes.length - 1}
+                  onClick={() =>
+                    setNotes((ns) => {
+                      const c = [...ns]
+                      ;[c[i + 1], c[i]] = [c[i], c[i + 1]]
+                      return c
+                    })
+                  }
+                >
+                  ↓
+                </button>
+                <button
+                  className="rowx"
+                  title="Remove"
+                  onClick={() => setNotes((ns) => (ns.length === 1 ? [newNote()] : ns.filter((_, j) => j !== i)))}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+          <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => setNotes((ns) => [...ns, newNote()])}>
+            + Another
+          </button>
           <h4>Did</h4>
           <input className="field" value={did} onChange={(e) => setDid(e.target.value)} placeholder="What actually happened" />
           <div className="row wrap" style={{ marginTop: 8, gap: 6 }}>
+            {notes.some((n) => n.text.trim()) && (
+              <button
+                className="btn ghost sm plandone"
+                onClick={() => setDid(notes.map((n) => n.text.trim()).filter(Boolean).join(', '))}
+              >
+                ✓ Did the plan
+              </button>
+            )}
             {FLEX_OPTIONS.filter((o) => o !== 'Other').map((o) => (
               <button key={o} className="btn ghost sm" onClick={() => setDid(o)}>
                 {o}

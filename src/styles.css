@@ -1253,3 +1253,72 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 @media (max-width: 760px) {
   .noterow { grid-template-columns: 112px 1fr 30px; }
 }
+
+.slotlab {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
+  margin: 14px 0 7px;
+}
+.slots { display: flex; gap: 6px; flex-wrap: wrap; }
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  text-align: left;
+  transition: background .13s, border-color .13s;
+}
+.slot b { font-size: 12.5px; font-weight: 600; }
+.slot span { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.slot:hover { background: var(--raised); border-color: var(--line-mid); }
+.slot.on { border-color: var(--line-strong); background: var(--raised); }
+.slot.flex b { color: #ffc964; }
+.slot.success b { color: #ffc964; }
+.slot.on.flex, .slot.on.success { border-color: rgba(255, 176, 32, 0.55); }
+
+/* Mode bar while you're choosing a time straight off the grid. */
+.picking {
+  flex: none;
+  margin: 0 20px 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+  border: 1px solid rgba(255, 122, 69, 0.45);
+  background: linear-gradient(180deg, rgba(255, 122, 69, 0.13), rgba(255, 122, 69, 0.04));
+  animation: railin 0.16s ease-out;
+}
+.picking b { color: var(--now); font-weight: 600; }
+.picking span { color: var(--text-2); }
+.picking .btn { margin-left: auto; }
+@media (max-width: 760px) {
+  .picking { margin: 0 12px 10px; gap: 8px; flex-wrap: wrap; }
+  .picking span { flex-basis: 100%; font-size: 12px; }
+}
+
+.noterow.plan { grid-template-columns: 22px 1fr 26px 26px 26px; }
+.noterow .rank {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.rowx:disabled { opacity: 0.2; cursor: default; }
+.rowx:disabled:hover { background: none; color: var(--text-3); }
+.block .sub.plan { color: hsl(var(--h) 28% 78%); }
+
+.planpreview { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+.planpreview li { font-size: 12.5px; color: var(--text-2); }
+.planpreview li.incoming { color: var(--now); font-weight: 600; }
+
+.plandone { color: var(--ok) !important; border-color: rgba(62, 207, 142, 0.4) !important; }
+.plandone:hover { background: rgba(62, 207, 142, 0.14) !important; }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { WeekGrid } from './components/WeekGrid'
 import { Inspector } from './components/Inspector'
 import { CreateSheet, type Draft } from './components/CreateSheet'
-import { RescheduleSheet } from './components/RescheduleSheet'
+import { RescheduleSheet, type ReschedDraft } from './components/RescheduleSheet'
 import { Onboarding } from './components/Onboarding'
 import { DayScheduleSheet } from './components/DayScheduleSheet'
 import { WeekStrip } from './components/WeekStrip'
@@ -26,6 +26,10 @@ export default function App() {
   const [schedDay, setSchedDay] = useState<string | null>(null)
   const [syncOpen, setSyncOpen] = useState(false)
   const [dropTarget, setDropTarget] = useState<number | null>(null)
+  // "Pick on calendar": the next time you choose on the grid becomes the target
+  // for the move you already started, instead of creating a new block.
+  const [picking, setPicking] = useState<{ occ: Occurrence; draft: ReschedDraft } | null>(null)
+  const [reschedInit, setReschedInit] = useState<ReschedDraft | null>(null)
   const isMobile = useMedia(MOBILE)
   const [mobileDay, setMobileDay] = useState(() => {
     const d = new Date().getDay()
@@ -83,7 +87,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName?.match(/INPUT|TEXTAREA/)) return
-      if (e.key === 'Escape') { setActiveKey(null); setFocusedDay(null) }
+      if (e.key === 'Escape') { setActiveKey(null); setFocusedDay(null); setPicking(null) }
       if (e.key === 'ArrowLeft') jump(-1)
       if (e.key === 'ArrowRight') jump(1)
       if (e.key === 't' || e.key === 'T') goToday()
@@ -176,6 +180,16 @@ export default function App() {
         </div>
       </div>
 
+      {picking && (
+        <div className="picking">
+          <b>Pick a time for “{picking.occ.title}”</b>
+          <span>Drag anywhere on the grid — any day, any week.</span>
+          <button className="btn sm ghost" onClick={() => { setRescheduling(picking.occ); setReschedInit(picking.draft); setPicking(null) }}>
+            Back
+          </button>
+        </div>
+      )}
+
       {loops.length > 0 && (
         <div className="loops">
           <b>{loops.length} need{loops.length === 1 ? 's' : ''} an outcome</b>
@@ -231,7 +245,20 @@ export default function App() {
         setActiveKey={setActiveKey}
         onOpenInspector={setInspect}
         onAskReschedule={setRescheduling}
-        onCreate={setDraft}
+        onCreate={(d) => {
+          if (picking) {
+            setReschedInit({
+              date: d.date,
+              startMin: d.startMin,
+              durationMin: Math.max(d.endMin - d.startMin, 10),
+              why: picking.draft.why,
+            })
+            setRescheduling(picking.occ)
+            setPicking(null)
+            return
+          }
+          setDraft(d)
+        }}
         now={now}
       />
 
@@ -249,7 +276,18 @@ export default function App() {
           onAskReschedule={() => { setRescheduling(inspect); setInspect(null) }}
         />
       )}
-      {rescheduling && <RescheduleSheet occ={rescheduling} onClose={() => setRescheduling(null)} />}
+      {rescheduling && (
+        <RescheduleSheet
+          occ={rescheduling}
+          initial={reschedInit}
+          onClose={() => { setRescheduling(null); setReschedInit(null) }}
+          onPickOnCalendar={(draft) => {
+            setPicking({ occ: rescheduling, draft })
+            setRescheduling(null)
+            setReschedInit(null)
+          }}
+        />
+      )}
       {draft && (
         <CreateSheet
           draft={draft}

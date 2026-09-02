@@ -47,16 +47,36 @@ places them correctly on every date:
 The `⋯` on any day header swaps that day's bell schedule, including **No school**
 for holidays and the CAASPP testing days the district hasn't dated yet.
 
-Flex keeps **both** lines once it has both:
+A Flex holds a **plan in priority order**, because you rarely have exactly one
+thing to do with it:
 
 ```
 FLEX
-Planned: Calc review
-Did: Friends
+1. Calc HW
+2. English essay draft
+Did: Calc HW, English essay draft
 ```
 
-The gap between the two is the entire reason for writing them down, so writing
-what you did never replaces what you meant to do.
+Reorder with ↑ ↓ in the editor. After it passes, one tap answers it — **✓ The
+plan** records what you'd written, or Friends / Study–work / Personal, or type
+your own. The gap between what you meant to do and what you did is the entire
+reason for writing them down, so reporting never erases the plan.
+
+## Rescheduling
+
+Four ways, because "when" isn't always a time you know off the top of your head:
+
+- **Into a Flex or SUCCESS.** The sheet lists the target day's actual periods, so
+  you never have to go and look up when Flex is on a block day. The task goes
+  *into* that period's plan rather than stacking a block on top of it — Flex is
+  already the slot for doing your own work, so laying a box over it says nothing.
+  If something's planned there already you choose **do this first** or **after
+  what's there**, with a preview of the resulting order.
+- **An open gap.** Real holes in that day, found by merging what's booked and
+  reporting what's left, filtered to slots your task actually fits in.
+- **A time you type.** As before.
+- **Pick on the calendar.** Drops you back on the grid — any day, any week — and
+  the next time you drag becomes the target.
 
 - **SUCCESS** shows `Open` until you write something for that day.
 - **Flex** is a period you *have*, not a slot in the bell schedule — mark 3rd and

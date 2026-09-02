@@ -80,7 +80,9 @@ export function BlockCard({
     // Seed from what YOU wrote for this day, never from the series default —
     // otherwise you'd have to clear "Open" before typing every single time.
     const seed = isFlex
-      ? (occ.state !== 'future' && occ.state !== 'now' ? (occ.did ?? '') : (occ.planned ?? ''))
+      ? occ.state !== 'future' && occ.state !== 'now'
+        ? (occ.did ?? '')
+        : (occ.notes[0]?.text ?? '')
       : (occ.notes.find((n) => !n.marker)?.text ?? '')
     setDraft(seed)
     const el = inputRef.current
@@ -94,12 +96,17 @@ export function BlockCard({
 
   const commit = () => {
     if (isFlex) {
-      const val = draft.trim() || undefined
-      patchOverride(occ.series.id, occ.date, {
-        [reporting ? 'did' : 'planned']: val,
-        // Saying what you did IS the outcome — no second confirmation step.
-        ...(reporting && val ? { outcome: 'finished' as const } : {}),
-      })
+      const val = draft.trim()
+      if (reporting) {
+        patchOverride(occ.series.id, occ.date, {
+          did: val || undefined,
+          // Saying what you did IS the outcome — no second confirmation step.
+          ...(val ? { outcome: 'finished' as const } : {}),
+        })
+      } else {
+        // Editing the plan from the block touches the top item only.
+        setQuickNote(occ, val)
+      }
     } else {
       setQuickNote(occ, draft)
     }
@@ -132,7 +139,11 @@ export function BlockCard({
   // what you did is the entire point of writing them down.
   const subLines: string[] = []
   if (isFlex) {
-    if (occ.planned) subLines.push(`Planned: ${occ.planned}`)
+    // A Flex can hold several things in the order you mean to do them, so they
+    // read as a numbered plan rather than one blurred line.
+    occ.notes.forEach((n, i) =>
+      subLines.push(occ.notes.length > 1 ? `${i + 1}. ${n.text}` : `Planned: ${n.text}`),
+    )
     if (occ.did) subLines.push(`Did: ${occ.did}`)
   } else if (occ.notes.length > 0) {
     for (const n of occ.notes) subLines.push(n.text)
@@ -311,6 +322,19 @@ export function BlockCard({
           <div className="row wrap" style={{ marginTop: 5, gap: 4 }}>
             {occ.state === 'needs-outcome' && isFlex && (
               <>
+                {/* If you wrote a plan, the commonest honest answer is that you
+                    followed it — and it records WHAT, not just "as planned". */}
+                {occ.notes.length > 0 && (
+                  <button
+                    className="btn sm ghost plandone"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() =>
+                      logFlex(occ.notes.map((n) => n.text.trim()).filter(Boolean).join(', '))
+                    }
+                  >
+                    ✓ The plan
+                  </button>
+                )}
                 {FLEX_OPTIONS.map((o) => (
                   <button
                     key={o}
@@ -355,7 +379,7 @@ export function BlockCard({
         <>
           {!compact &&
             !tight &&
-            (occ.notes.length > 0
+            (occ.notes.length > 0 && !isFlex
               ? occ.notes.map((n) => (
                   <div className={`sub ${n.marker ? `flag ${n.marker}` : ''}`} key={n.id}>
                     {n.text}

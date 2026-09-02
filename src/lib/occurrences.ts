@@ -26,7 +26,6 @@ export interface Occurrence {
   outcome?: Outcome
   outcomeNote?: string
   movedTo?: { date: string; startMin: number }
-  planned?: string
   did?: string
   afterNote?: string
   state: OccState
@@ -123,7 +122,6 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
       outcome: ov?.outcome,
       outcomeNote: ov?.outcomeNote,
       movedTo: ov?.movedTo,
-      planned: ov?.planned,
       did: ov?.did,
       afterNote: ov?.afterNote,
       state,
