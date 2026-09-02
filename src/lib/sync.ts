@@ -1,15 +1,15 @@
-import type { SupabaseClient, Session } from '@supabase/supabase-js'
+import type { SupabaseClient, Session, EmailOtpType } from '@supabase/supabase-js'
 import type { DB } from './types'
 import { getDB, hydrate, subscribe } from './store'
 import { mergeDB, remoteWins } from './merge'
 
 export { mergeDB, remoteWins } from './merge'
 
-const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 /** With no credentials the whole module is a no-op and MyCAL stays local-only. */
-export const SYNC_CONFIGURED = Boolean(URL && KEY)
+export const SYNC_CONFIGURED = Boolean(SUPA_URL && SUPA_KEY)
 
 // Loaded on demand: with sync switched off the Supabase client never enters the
 // bundle you download, which keeps the local-only app half the size.
@@ -18,7 +18,7 @@ async function client(): Promise<SupabaseClient | null> {
   if (supabase) return supabase
   if (!SYNC_CONFIGURED) return null
   const { createClient } = await import('@supabase/supabase-js')
-  supabase = createClient(URL!, KEY!, {
+  supabase = createClient(SUPA_URL!, SUPA_KEY!, {
     auth: { persistSession: true, autoRefreshToken: true },
   })
   return supabase
@@ -159,19 +159,37 @@ export async function signIn(email: string) {
 }
 
 /**
- * Typing a code beats tapping a link on a phone. An installed home-screen app
+ * Typing a credential beats tapping one on a phone. An installed home-screen app
  * has its own storage, and a link in Mail always opens the browser instead — so
- * the link signs in the browser and leaves the app you're holding logged out.
- * A code goes wherever you type it.
+ * the link signs the browser in and leaves the app you're holding logged out.
+ *
+ * Takes either the six-digit code or the sign-in link itself, because whether
+ * the email shows a code depends on a mail template we don't control from here.
+ * Copying the link and pasting it works the same as typing the digits.
  */
-export async function verifyCode(email: string, token: string) {
+export async function verifyCode(email: string, input: string) {
   const sb = await client()
   if (!sb) throw new Error('Sync is not configured')
-  const { error } = await sb.auth.verifyOtp({
-    email,
-    token: token.replace(/\D/g, ''),
-    type: 'email',
-  })
+  const trimmed = input.trim()
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    let url: URL
+    try {
+      url = new URL(trimmed)
+    } catch {
+      throw new Error("That doesn't look like a code or a sign-in link.")
+    }
+    const hash = url.searchParams.get('token_hash') ?? url.searchParams.get('token')
+    if (!hash) throw new Error("That link has no sign-in token in it — copy the one from the email.")
+    const type = (url.searchParams.get('type') ?? 'magiclink') as EmailOtpType
+    const { error } = await sb.auth.verifyOtp({ token_hash: hash, type })
+    if (error) throw error
+    return
+  }
+
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length < 6) throw new Error('A code is six digits, or paste the whole link.')
+  const { error } = await sb.auth.verifyOtp({ email, token: digits, type: 'email' })
   if (error) throw error
 }
 

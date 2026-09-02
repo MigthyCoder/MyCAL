@@ -97,8 +97,11 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const looksLikeLink = /^https?:\/\//i.test(code.trim())
+  const canVerify = looksLikeLink || code.replace(/\D/g, '').length >= 6
+
   const verify = async () => {
-    if (code.replace(/\D/g, '').length < 6) return
+    if (!canVerify) return
     setBusy(true)
     setErr(null)
     try {
@@ -195,21 +198,27 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
         </>
       ) : sent ? (
         <>
-          <h4>Code from your email</h4>
+          <h4>{looksLikeLink ? 'Sign-in link' : 'Code from your email'}</h4>
           <input
-            className="field codefield"
+            className={`field ${looksLikeLink ? 'linkfield' : 'codefield'}`}
             autoFocus
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(e) => {
+              const v = e.target.value
+              // Accepts either credential, so keep a pasted URL intact.
+              setCode(/^https?:/i.test(v.trim()) ? v.trim() : v.replace(/\D/g, '').slice(0, 6))
+            }}
             placeholder="000000"
-            inputMode="numeric"
+            inputMode={looksLikeLink ? 'url' : 'numeric'}
             autoComplete="one-time-code"
             onKeyDown={(e) => { if (e.key === 'Enter') void verify() }}
           />
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.55 }}>
-            Sent to {email}. Type the six digits here rather than tapping the link —
-            on a phone the link opens your browser, which signs in the browser and
-            leaves this app logged out.
+            Sent to {email}. <strong>If the email only has a button or a link</strong>,
+            press and hold it, choose <strong>Copy Link</strong>, and paste it in
+            here — that works exactly the same. Don't just tap it: on a phone it
+            opens your browser, which signs the browser in and leaves this app
+            logged out.
           </div>
           {err && (
             <div className="note" style={{ marginTop: 12, borderLeftColor: '#ff8f8f', color: '#ff8f8f' }}>
@@ -224,7 +233,7 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
             <button
               className="btn solid"
               onClick={() => void verify()}
-              disabled={busy || code.length < 6}
+              disabled={busy || !canVerify}
             >
               {busy ? 'Checking…' : 'Sign in'}
             </button>

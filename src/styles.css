@@ -1029,3 +1029,5 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   .chipday { padding: 10px 0 8px; }
   .field { padding: 12px 13px; }
 }
+
+.linkfield { font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
