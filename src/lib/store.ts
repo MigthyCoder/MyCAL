@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { DB, Marker, Outcome, Override, Reminder, SchoolConfig, Series } from './types'
+import type { DB, Marker, Outcome, Override, SchoolConfig, Series } from './types'
 import type { Occurrence } from './occurrences'
 
 const KEY = 'mycal.db.v1'
@@ -34,6 +34,40 @@ const emptyDB = (): DB => ({
   onboarded: false,
 })
 
+/** The default moment for something with no time: after the last thing you've
+ *  already got on, or a late-evening fallback on an empty day. */
+export const END_OF_DAY_MIN = 21 * 60 + 30
+
+/** Reminders used to be a list beside the grid. They're pins on it now, which is
+ *  what lets them be rescheduled and answered for like any other intention. */
+function migrateReminders(parsed: DB): Pick<DB, 'series' | 'overrides' | 'reminders'> {
+  const legacy = parsed.reminders ?? []
+  if (legacy.length === 0) {
+    return { series: parsed.series, overrides: parsed.overrides, reminders: [] }
+  }
+  const known = new Set(parsed.series.map((s) => s.id))
+  const series = [...parsed.series]
+  const overrides = [...parsed.overrides]
+  for (const r of legacy) {
+    if (known.has(r.id)) continue
+    series.push({
+      id: r.id,
+      title: r.text,
+      kind: 'task',
+      category: 'personal',
+      schoolRole: null,
+      startMin: END_OF_DAY_MIN,
+      endMin: END_OF_DAY_MIN,
+      recurrence: null,
+      anchorDate: r.date,
+      createdAt: r.createdAt,
+      pin: true,
+    })
+    if (r.done) overrides.push({ seriesId: r.id, date: r.date, outcome: 'finished' })
+  }
+  return { series, overrides, reminders: [] }
+}
+
 function load(): DB {
   const fresh = emptyDB()
   try {
@@ -46,7 +80,7 @@ function load(): DB {
       ...parsed,
       startedOn: parsed.startedOn || fresh.startedOn,
       density: parsed.density || fresh.density,
-      reminders: parsed.reminders ?? [],
+      ...migrateReminders(parsed),
       school: { ...DEFAULT_SCHOOL, ...(parsed.school ?? {}) },
     }
   } catch {
@@ -202,6 +236,8 @@ export function reschedule(
 
 /** Same-day drag or resize: this occurrence only, series untouched. */
 export function reshapeOccurrence(occ: Occurrence, startMin: number, endMin: number) {
+  // A pin has no length to preserve — dragging it just moves the moment.
+  if (occ.series.pin) endMin = startMin
   if (!occ.series.recurrence) {
     updateSeries(occ.series.id, { startMin, endMin })
   } else {
@@ -234,28 +270,12 @@ export function moveOccurrenceToDate(occ: Occurrence, toDate: string, startMin: 
 
 // ------------------------------------------------------------------ misc
 
-// ------------------------------------------------------------- reminders
+// ------------------------------------------------------------------- pins
 
-export function addReminder(date: string, text: string) {
-  const r: Reminder = { id: uid(), date, text: text.trim(), done: false, createdAt: Date.now() }
-  commit({ ...db, reminders: [...db.reminders, r] })
-}
-
-export function toggleReminder(id: string) {
-  commit({
-    ...db,
-    reminders: db.reminders.map((r) => (r.id === id ? { ...r, done: !r.done } : r)),
-  })
-}
-
-export function editReminder(id: string, text: string) {
-  const t = text.trim()
-  if (!t) return removeReminder(id)
-  commit({ ...db, reminders: db.reminders.map((r) => (r.id === id ? { ...r, text: t } : r)) })
-}
-
-export function removeReminder(id: string) {
-  commit({ ...db, reminders: db.reminders.filter((r) => r.id !== id) })
+/** Where a new to-do lands: below everything already on that day. */
+export function endOfDayFor(occupiedEndMins: number[]): number {
+  const last = occupiedEndMins.length ? Math.max(...occupiedEndMins) : 0
+  return Math.max(END_OF_DAY_MIN, Math.min(last + 20, 23 * 60 + 30))
 }
 
 export function setOnboarded(v: boolean) {

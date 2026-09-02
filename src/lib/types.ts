@@ -39,6 +39,12 @@ export interface Series {
   createdAt: number
   /** Why this block is allowed to overlap another one. "Work in car", "Editing on phone". */
   overlapReason?: string
+  /**
+   * A moment rather than a span. "Call grandma before bed" has no duration you
+   * could honestly draw, so it's a line on the grid instead of a box — but it's
+   * still something you meant to do, so it still owes you an outcome.
+   */
+  pin?: boolean
   archived?: boolean
 }
 

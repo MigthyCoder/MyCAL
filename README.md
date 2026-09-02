@@ -84,7 +84,7 @@ Glance first, interact second. The default state should tell you everything.
 |---|---|
 | Drag empty time | new block |
 | **Long-press a block (phone)** | it lifts off the grid and follows your finger — drag up or down to move it in the day, or onto a day in the week strip to move it to that day |
-| **`+ to do`** | something for that day with no set time |
+| **Tap a to-do** | `Done / Move / Drop`, inline on the line |
 | **Hover a commitment** | a `＋` rail fades in over its right edge, the `＋` tracking your cursor — click or drag there to add something alongside at that exact time. Nothing on the grid moves |
 | Click a block | inline note for **that day only** — type, Enter, done |
 | `＋` in an open block | same thing, from the keyboard-ish path |
@@ -155,12 +155,22 @@ wrote about one specific day of it. That's why Monday's SUCCESS can say
 "See Lohmann" while Tuesday's still says "Open", and why a schedule change ends
 the old series instead of erasing it.
 
-## Reminders
+## To-dos
 
-Not everything has a time. "Call grandma" isn't a 30-minute block, and giving it
-one makes the grid lie about your evening. The strip above the grid holds untimed
-things for a day — tap `+ to do`, tap again to check it off. They sync like
-everything else.
+Not everything has a time. "Call grandma before bed" isn't a 30-minute block, and
+giving it one makes the grid lie about your evening.
+
+So a to-do is a **line across the day** rather than a box: a dashed rule, a dot,
+the text, and nothing claiming a slot it doesn't take. It lands after everything
+else you've got on that day, and you can drag it anywhere — including out of the
+way to fit something under it.
+
+It is still a task. Once it passes it reads `done?`, and one tap answers
+**Done / Move / Drop** right there on the line. Moving it keeps the history
+trail like any other reschedule. Two to-dos at the same moment stack instead of
+printing over each other.
+
+Add one with `+ Block` → **To-do**.
 
 ## On a phone
 

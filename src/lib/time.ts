@@ -58,6 +58,8 @@ export function fmtTimeShort(min: number): string {
 }
 
 export function fmtRange(a: number, b: number): string {
+  // A to-do is a moment, not a span — "9:30–9:30 PM" is just noise.
+  if (a === b) return fmtTime(a)
   return `${fmtTimeShort(a)}–${fmtTime(b)}`
 }
 

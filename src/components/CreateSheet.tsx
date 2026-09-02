@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { Occurrence } from '../lib/occurrences'
 import type { Category, Kind } from '../lib/types'
-import { addSeries } from '../lib/store'
-import { fmtRange, parseKey } from '../lib/time'
+import { addSeries, endOfDayFor } from '../lib/store'
+import { fmtRange, fmtTime, parseKey } from '../lib/time'
 import { CategoryPicker, DayPicker, Seg, Sheet, TimeField } from './ui'
 
 export interface Draft {
@@ -22,6 +22,9 @@ export function CreateSheet({
 }) {
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<Kind>('task')
+  // A to-do has no duration you could honestly draw, so it lands after whatever
+  // is already on that day rather than claiming a slot of its own.
+  const [isPin, setIsPin] = useState(false)
   const [category, setCategory] = useState<Category>('work')
   const [start, setStart] = useState(draft.startMin)
   const [end, setEnd] = useState(draft.endMin)
@@ -29,21 +32,28 @@ export function CreateSheet({
   const [why, setWhy] = useState('')
 
   // The app never silently stacks blocks. If this lands on top of something,
-  // it asks what makes the overlap actually work.
+  // it asks what makes the overlap actually work. A pin lies across whatever is
+  // there by design, so it never asks.
   const collides = useMemo(
-    () => sameDay.filter((o) => o.startMin < end && start < o.endMin),
-    [sameDay, start, end],
+    () => (isPin ? [] : sameDay.filter((o) => !o.pin && o.startMin < end && start < o.endMin)),
+    [sameDay, start, end, isPin],
+  )
+
+  const pinAt = useMemo(
+    () => endOfDayFor(sameDay.filter((o) => !o.pin).map((o) => o.endMin)),
+    [sameDay],
   )
 
   const create = () => {
     if (!title.trim()) return
     addSeries({
       title: title.trim(),
-      kind,
+      kind: isPin ? 'task' : kind,
       category,
       schoolRole: null,
-      startMin: start,
-      endMin: Math.max(end, start + 10),
+      ...(isPin ? { pin: true } : {}),
+      startMin: isPin ? pinAt : start,
+      endMin: isPin ? pinAt : Math.max(end, start + 10),
       recurrence: repeat.length ? { byDay: repeat } : null,
       anchorDate: draft.date,
       ...(collides.length && why.trim() ? { overlapReason: why.trim().toUpperCase() } : {}),
@@ -53,10 +63,10 @@ export function CreateSheet({
 
   return (
     <Sheet onClose={onClose}>
-      <h3>New block</h3>
+      <h3>{isPin ? 'New to-do' : 'New block'}</h3>
       <div className="meta">
-        {parseKey(draft.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} ·{' '}
-        {fmtRange(start, end)}
+        {parseKey(draft.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+        {isPin ? '' : ` · ${fmtRange(start, end)}`}
       </div>
 
       <input
@@ -64,29 +74,44 @@ export function CreateSheet({
         autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="CCIR Workshop 3"
+        placeholder={isPin ? 'Call grandma' : 'CCIR Workshop 3'}
         onKeyDown={(e) => { if (e.key === 'Enter') create() }}
       />
 
-      <h4>Does this need an outcome?</h4>
+      <h4>What kind of thing is it?</h4>
       <Seg
-        value={kind}
+        value={isPin ? 'pin' : kind}
         options={[
-          { value: 'task' as const, label: 'Task — ask me after' },
-          { value: 'event' as const, label: 'Event — just happens' },
+          { value: 'task' as const, label: 'Task' },
+          { value: 'event' as const, label: 'Event' },
+          { value: 'pin' as const, label: 'To-do' },
         ]}
-        onChange={setKind}
+        onChange={(v) => {
+          if (v === 'pin') setIsPin(true)
+          else { setIsPin(false); setKind(v as Kind) }
+        }}
       />
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6, lineHeight: 1.5 }}>
+        {isPin
+          ? `No set time — it sits as a line at ${fmtTime(pinAt)}, after everything else that day. Drag it wherever you like, and it still asks whether it got done.`
+          : kind === 'task'
+            ? 'Takes a slot, and asks you afterwards whether it got done.'
+            : 'Takes a slot. Never asks you for anything.'}
+      </div>
 
       <h4>Color</h4>
       <CategoryPicker value={category} onChange={setCategory} />
 
-      <h4>Time</h4>
-      <div className="row">
-        <TimeField value={start} onChange={setStart} />
-        <span style={{ color: 'var(--text-3)' }}>to</span>
-        <TimeField value={end} onChange={setEnd} />
-      </div>
+      {!isPin && (
+        <>
+          <h4>Time</h4>
+          <div className="row">
+            <TimeField value={start} onChange={setStart} />
+            <span style={{ color: 'var(--text-3)' }}>to</span>
+            <TimeField value={end} onChange={setEnd} />
+          </div>
+        </>
+      )}
 
       <h4>Repeat weekly</h4>
       <DayPicker value={repeat} onChange={setRepeat} />
@@ -111,7 +136,9 @@ export function CreateSheet({
       <div className="actions">
         <div className="spacer" />
         <button className="btn ghost" onClick={onClose}>Cancel</button>
-        <button className="btn solid" onClick={create} disabled={!title.trim()}>Add block</button>
+        <button className="btn solid" onClick={create} disabled={!title.trim()}>
+          {isPin ? 'Add to-do' : 'Add block'}
+        </button>
       </div>
     </Sheet>
   )

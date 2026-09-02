@@ -1149,3 +1149,88 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   border-color: var(--now);
 }
 .chipday.droptarget .dn { color: var(--now); }
+
+/* --------------------------------------------------------------------- pins */
+
+/* Something you mean to do at no particular hour. It reads as a line drawn
+   across the day rather than a box claiming time it doesn't actually take. */
+.block.pin {
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px 0 7px;
+  background: linear-gradient(90deg, hsl(var(--h) 45% 20% / 0.9), hsl(var(--h) 45% 16% / 0.55));
+  border: none;
+  border-top: 1.5px dashed hsl(var(--h) 55% 58% / 0.85);
+  border-radius: 0 5px 5px 0;
+  box-shadow: none;
+}
+.block.pin::before { width: 0; }
+.block.pin.open {
+  border-top-style: solid;
+  background: linear-gradient(90deg, hsl(var(--h) 48% 26% / 0.98), hsl(var(--h) 46% 20% / 0.98));
+}
+.pinactions { display: flex; align-items: center; gap: 4px; width: 100%; }
+.pinactions button {
+  flex: 1;
+  padding: 3px 4px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: hsl(var(--h) 30% 88%);
+  background: rgba(255, 255, 255, 0.08);
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+.pinactions button:first-child { color: var(--ok); }
+.pinactions button:hover { background: rgba(255, 255, 255, 0.2); color: var(--text); }
+.pindot {
+  flex: none;
+  width: 7px; height: 7px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  background: hsl(var(--h) 72% 64%);
+}
+.pintext {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pinwhen {
+  flex: none;
+  font-size: 10px;
+  color: hsl(var(--h) 24% 66%);
+  font-variant-numeric: tabular-nums;
+}
+
+.block.pin.needs {
+  background: linear-gradient(90deg, rgba(255, 176, 32, 0.24), rgba(255, 176, 32, 0.05));
+  border-top-color: var(--warn);
+}
+.block.pin.needs .pindot { background: var(--warn); }
+.block.pin.needs .pinwhen { color: var(--warn); font-weight: 700; }
+
+.block.pin.finished { opacity: 0.5; }
+.block.pin.finished .pintext { text-decoration: line-through; }
+.block.pin.finished .pindot { background: var(--ok); border-radius: 50%; transform: none; }
+.block.pin.finished::after { content: none; }
+.block.pin.dropped { opacity: 0.38; background: none; }
+.block.pin.dropped .pintext { text-decoration: line-through; }
+.block.pin.rescheduled { opacity: 0.5; background: none; border-top-style: dashed; }
+.block.pin.past { opacity: 0.5; }
+.block.pin:hover { filter: brightness(1.25); }
+.block.pin.active, .block.pin.lifted { border-radius: 8px; }
+
+@media (max-width: 760px) {
+  .pinactions button { font-size: 12px; padding: 6px 4px; }
+  .pintext { font-size: 14px; }
+  .pinwhen { font-size: 12px; }
+  .pindot { width: 9px; height: 9px; }
+  .block.pin { padding: 0 12px 0 10px; gap: 9px; }
+}

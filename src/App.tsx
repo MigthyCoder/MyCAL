@@ -209,7 +209,6 @@ export default function App() {
 
       <WeekGrid
         pxPerMin={db.density}
-        reminders={db.reminders}
         weekAll={days}
         onDropTarget={setDropTarget}
         isMobile={isMobile}

@@ -1,4 +1,5 @@
 import type { Occurrence } from './occurrences'
+import { DAY_START_MIN } from './time'
 
 export interface Placed {
   occ: Occurrence
@@ -8,6 +9,9 @@ export interface Placed {
   cols: number
   /** Sits on top of a bigger block rather than beside it. */
   rider: boolean
+  /** Extra pixels down, so two to-dos at the same moment stack rather than
+   *  printing on top of each other. */
+  pinOffset?: number
   /** Laid over a partly-overlapping neighbour instead of splitting the column.
    *  0 means not cascaded; otherwise it's the 1-based layer, so `stacked < cols`
    *  says something is sitting on top of this one. */
@@ -134,8 +138,26 @@ function packColumns(occs: Occurrence[]): Slot[] {
   return out
 }
 
-export function layoutDay(occs: Occurrence[]): Placed[] {
-  if (occs.length === 0) return []
+/** Drawn height of a pin, in px. Needed here to stop two of them colliding. */
+export const PIN_H = 26
+
+export function layoutDay(all: Occurrence[], pxPerMin = 1): Placed[] {
+  if (all.length === 0) return []
+
+  // A pin is a line at a moment, not a box over a span. It has no width to
+  // compete for, so it sits out of the packing and lies across whatever is
+  // already there — but two of them at the same moment still have to be
+  // readable, so they stack downward instead of printing over each other.
+  const pins = [...all.filter((o) => o.pin)].sort((a, b) => a.startMin - b.startMin)
+  const occs = all.filter((o) => !o.pin)
+  let lastBottom = -Infinity
+  const pinned: Placed[] = pins.map((o) => {
+    const top = (o.startMin - DAY_START_MIN) * pxPerMin
+    const pinOffset = top < lastBottom ? lastBottom - top : 0
+    lastBottom = top + pinOffset + PIN_H + 2
+    return { occ: o, left: 0, width: 1, cols: 1, rider: false, stacked: 0, pinOffset }
+  })
+  if (occs.length === 0) return pinned
 
   // Work out what rides on what. Best host = an event first, then the longest.
   const hostOf = new Map<string, Occurrence>()
@@ -199,5 +221,5 @@ export function layoutDay(occs: Occurrence[]): Placed[] {
     }
   }
 
-  return out
+  return [...out, ...pinned]
 }

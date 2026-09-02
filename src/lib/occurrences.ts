@@ -34,6 +34,8 @@ export interface Occurrence {
   edited: boolean
   /** Comes from the bell schedule rather than db.series — can't be dragged or deleted. */
   generated: boolean
+  /** Drawn as a line at a moment rather than a box over a span. */
+  pin: boolean
 }
 
 /** Flex is scheduled like a class but graded like a task. */
@@ -129,6 +131,7 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
       overlapReason: series.overlapReason,
       edited: Boolean(ov && (ov.subtitle !== undefined || ov.title !== undefined || ov.marker)),
       generated,
+      pin: Boolean(series.pin),
     })
   }
 

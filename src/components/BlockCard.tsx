@@ -56,14 +56,21 @@ export function BlockCard({
 
   // The Flex quick-picks wrap to two rows in a narrow column, so an open Flex
   // block needs more room than an open note block.
+  // A pin is a line, so it has a height of its own rather than one earned from
+  // its duration — which is zero.
+  const PIN_H = 26
   const openMin = isFlex && occ.state === 'needs-outcome' ? 156 : 104
-  const height = active ? Math.max(naturalH, openMin) : Math.max(naturalH, 18)
+  const height = occ.pin
+    ? PIN_H
+    : active
+      ? Math.max(naturalH, openMin)
+      : Math.max(naturalH, 18)
   // Hovering lets a block grow past its time slot to show the rest of a note.
   // Blocks whose text already fits don't move at all, so this never jitters.
   // Same rule as the hover rail: only a commitment that isn't already riding on
   // something can take one of its own.
   const canHostRider = !occ.generated && occ.series.kind === 'event' && !placed.rider
-  const top = (occ.startMin - DAY_START_MIN) * pxPerMin
+  const top = (occ.startMin - DAY_START_MIN) * pxPerMin + (placed.pinOffset ?? 0)
 
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -165,7 +172,7 @@ export function BlockCard({
         occ.series.schoolRole ? 'sch' : ''
       } ${grow ? 'grown' : ''} ${placed.rider ? 'rider' : ''} ${
         placed.stacked ? 'stacked' : ''
-      } ${lifted ? 'lifted' : ''}`}
+      } ${lifted ? 'lifted' : ''} ${occ.pin ? 'pin' : ''} ${active ? 'open' : ''}`}
       style={{
         // @ts-expect-error custom property
         '--h': hue,
@@ -217,8 +224,34 @@ export function BlockCard({
         </>
       )}
 
+      {occ.pin &&
+        (active ? (
+          // Actions live on the line. Growing a line into a card would shove the
+          // to-dos stacked under it out of the way for no reason.
+          <div className="pinactions" onMouseDown={(e) => e.stopPropagation()}>
+            <button onClick={() => { setOutcome(occ, 'finished'); onDismiss() }}>✓ Done</button>
+            <button onClick={onAskReschedule}>Move</button>
+            <button onClick={() => { setOutcome(occ, 'dropped'); onDismiss() }}>Drop</button>
+          </div>
+        ) : (
+          <>
+            <i className="pindot" />
+            <span className="pintext">{occ.title}</span>
+            <span className="pinwhen">
+              {occ.state === 'rescheduled' && occ.movedTo
+                ? `→ ${parseKey(occ.movedTo.date).toLocaleDateString(undefined, { weekday: 'short' })}`
+                : occ.state === 'needs-outcome'
+                  ? 'done?'
+                  : occ.state === 'finished' || occ.state === 'dropped'
+                    ? ''
+                    : fmtTime(occ.startMin)}
+            </span>
+          </>
+        ))}
+
       {occ.overlapReason && !compact && !tight && <div className="why">{occ.overlapReason}</div>}
 
+      {!occ.pin && (
       <div className="title">
         <span className="tname">{occ.title}</span>
         {/* The chip lives on the title line — on its own row it pushes the note
@@ -238,8 +271,9 @@ export function BlockCard({
           )
         )}
       </div>
+      )}
 
-      {active ? (
+      {active && !occ.pin ? (
         <div style={{ marginTop: 4 }} onMouseDown={(e) => e.stopPropagation()}>
           <input
             ref={inputRef}
@@ -303,7 +337,7 @@ export function BlockCard({
             </button>
           </div>
         </div>
-      ) : (
+      ) : occ.pin ? null : (
         <>
           {!compact &&
             !tight &&

@@ -16,7 +16,6 @@ import {
 import { BlockCard, RAIL_W } from './BlockCard'
 import { moveOccurrenceToDate, reshapeOccurrence } from '../lib/store'
 import { SCHEDULES, scheduleIdFor } from '../lib/bell'
-import { ReminderRow } from './ReminderRow'
 
 const HOURS = Array.from(
   { length: Math.floor((DAY_END_MIN - DAY_START_MIN) / 60) + 1 },
@@ -30,7 +29,6 @@ type Drag =
 
 interface Props {
   pxPerMin: number
-  reminders: import('../lib/types').Reminder[]
   isMobile: boolean
   /** The whole week, even when the grid is only drawing one day of it — a chip
    *  in the strip is how you drop something onto another day. */
@@ -57,7 +55,6 @@ interface Props {
 
 export function WeekGrid({
   pxPerMin,
-  reminders,
   isMobile,
   weekAll,
   onDropTarget,
@@ -349,8 +346,6 @@ export function WeekGrid({
       </div>
       )}
 
-      <ReminderRow days={days} reminders={reminders} template={template} isMobile={isMobile} />
-
       {empty && (
         <div className="empty" style={{ zIndex: 9 }}>
           <b>Blank until you put your life here.</b>
@@ -399,7 +394,7 @@ export function WeekGrid({
           {days.map((d, i) => {
             const key = dateKey(d)
             const occs = byDay.get(key) ?? []
-            const placed = layoutDay(occs)
+            const placed = layoutDay(occs, pxPerMin)
             // The rail is only for commitments you added — the "where my life is
             // happening" blocks. You don't do side work during a class, a task is
             // already the thing you're doing, and a block that's already riding on
