@@ -3,7 +3,9 @@ import {
   SYNC_CONFIGURED,
   getSyncState,
   onSyncChange,
+  createAccount,
   signIn,
+  signInWithPassword,
   signOut,
   verifyCode,
   type SyncState,
@@ -43,6 +45,9 @@ export function SyncButton({ onOpen }: { onOpen: () => void }) {
 export function SyncSheet({ onClose }: { onClose: () => void }) {
   const sync = useSync()
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [needsAccount, setNeedsAccount] = useState(false)
+  const [emailMode, setEmailMode] = useState(false)
   const [sent, setSent] = useState(false)
   const [code, setCode] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -99,6 +104,28 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
 
   const looksLikeLink = /^https?:\/\//i.test(code.trim())
   const canVerify = looksLikeLink || code.replace(/\D/g, '').length >= 6
+
+  const submitPassword = async (create: boolean) => {
+    if (!email.trim() || password.length < 6) return
+    setBusy(true)
+    setErr(null)
+    try {
+      if (create) await createAccount(email, password)
+      else await signInWithPassword(email, password)
+      onClose()
+    } catch (e) {
+      const msg = (e as Error).message
+      // Supabase says the same thing for a wrong password and no account at all.
+      if (/invalid login credentials/i.test(msg)) {
+        setNeedsAccount(true)
+        setErr("No account with that email, or the password is wrong.")
+      } else {
+        setErr(msg)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const verify = async () => {
     if (!canVerify) return
@@ -239,7 +266,7 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
             </button>
           </div>
         </>
-      ) : (
+      ) : emailMode ? (
         <>
           <h4>Email</h4>
           <input
@@ -252,9 +279,50 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
             onKeyDown={(e) => { if (e.key === 'Enter') void send() }}
           />
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.55 }}>
-            No password — you get a six-digit code by email. Use the same address on
-            both devices and they become the same calendar. What's already on this
-            device is kept and merged in.
+            You'll get a code or a link. Note that a link is single-use — if your
+            browser opened it already, it won't work when you paste it.
+          </div>
+          {err && (
+            <div className="note" style={{ marginTop: 12, borderLeftColor: '#ff8f8f', color: '#ff8f8f' }}>
+              {err}
+            </div>
+          )}
+          <div className="actions">
+            <button className="btn ghost" onClick={() => { setEmailMode(false); setErr(null) }}>
+              Use a password
+            </button>
+            <div className="spacer" />
+            <button className="btn solid" onClick={() => void send()} disabled={busy || !email.trim()}>
+              {busy ? 'Sending…' : 'Send it'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h4>Email</h4>
+          <input
+            className="field"
+            type="email"
+            autoComplete="username"
+            autoFocus
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setNeedsAccount(false) }}
+            placeholder="you@example.com"
+          />
+          <h4>Password</h4>
+          <input
+            className="field"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setNeedsAccount(false) }}
+            placeholder="At least 6 characters"
+            onKeyDown={(e) => { if (e.key === 'Enter') void submitPassword(needsAccount) }}
+          />
+          <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.55 }}>
+            Same email and password on your laptop and your phone and they're the
+            same calendar. No emailed links to chase — those are single-use and
+            open the wrong app on a phone.
           </div>
           {err && (
             <div className="note" style={{ marginTop: 12, borderLeftColor: '#ff8f8f', color: '#ff8f8f' }}>
@@ -263,11 +331,27 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
           )}
           {transfer}
           <div className="actions">
-            <div className="spacer" />
-            <button className="btn ghost" onClick={onClose}>Cancel</button>
-            <button className="btn solid" onClick={() => void send()} disabled={busy || !email.trim()}>
-              {busy ? 'Sending…' : 'Email me a code'}
+            <button className="btn ghost sm" onClick={() => { setEmailMode(true); setErr(null) }}>
+              Email me a code instead
             </button>
+            <div className="spacer" />
+            {needsAccount ? (
+              <button
+                className="btn solid"
+                onClick={() => void submitPassword(true)}
+                disabled={busy || password.length < 6}
+              >
+                {busy ? 'Creating…' : 'Create account'}
+              </button>
+            ) : (
+              <button
+                className="btn solid"
+                onClick={() => void submitPassword(false)}
+                disabled={busy || !email.trim() || password.length < 6}
+              >
+                {busy ? 'Signing in…' : 'Sign in'}
+              </button>
+            )}
           </div>
         </>
       )}

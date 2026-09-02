@@ -148,6 +148,33 @@ export async function initSync() {
   })
 }
 
+/**
+ * A password is the only credential that doesn't rot. Emailed links are
+ * single-use and expire; on a phone they open the browser rather than the app
+ * you installed, so the session lands somewhere you aren't. A password you type
+ * works on every device, every time, forever.
+ */
+export async function signInWithPassword(email: string, password: string) {
+  const sb = await client()
+  if (!sb) throw new Error('Sync is not configured')
+  const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password })
+  if (error) throw error
+}
+
+export async function createAccount(email: string, password: string) {
+  const sb = await client()
+  if (!sb) throw new Error('Sync is not configured')
+  const { data, error } = await sb.auth.signUp({ email: email.trim(), password })
+  if (error) throw error
+  if (!data.session) {
+    // Supabase is still set to demand a confirmation email for new accounts.
+    throw new Error(
+      'Account made, but the project still requires email confirmation. ' +
+        'Turn off "Confirm email" in Supabase → Authentication → Sign In / Providers → Email, then sign in.',
+    )
+  }
+}
+
 export async function signIn(email: string) {
   const sb = await client()
   if (!sb) throw new Error('Sync is not configured')

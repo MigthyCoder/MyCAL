@@ -66,7 +66,18 @@ VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 ```
 
-## 5. Put the code in the email
+## 5. Turn off email confirmation
+
+Sign-in uses a password, not an emailed link. Links are single-use and expire, and
+on a phone they open the browser rather than the app you installed — so the
+session lands somewhere you aren't.
+
+**Authentication → Sign In / Providers → Email** → turn **Confirm email** OFF.
+
+That's what lets an account be created and signed in immediately, with no email
+anywhere in the loop.
+
+## 5b. Optional: put the code in the email
 
 Sign-in uses a six-digit code, not a link — on a phone a link opens the browser,
 which signs the browser in and leaves an installed home-screen app logged out.
@@ -86,9 +97,11 @@ desktop.
 
 ## 6. Sign in on both devices
 
-A **Sync** button appears in the header. Enter your email, type the code it sends,
-and do the same on your phone with the same address. Whatever is already on each
-device gets merged in rather than overwritten.
+A **Sync** button appears in the header. Enter an email and a password, hit
+**Sign in** — the first time it'll say no account exists and offer **Create
+account**. Then do exactly the same on your phone.
+
+Whatever is already on each device gets merged in rather than overwritten.
 
 ## How the merging works
 

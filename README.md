@@ -15,7 +15,9 @@ npm run dev
 Then open http://localhost:5273.
 
 Data lives in your browser by default. Cross-device sync is optional and off
-until you set it up — see [SYNC-SETUP.md](SYNC-SETUP.md).
+until you set it up — see [SYNC-SETUP.md](SYNC-SETUP.md). Sign-in is an email and
+a password: emailed links are single-use, expire, and on a phone open the browser
+instead of the installed app, so the session ends up somewhere you aren't.
 
 ---
 
