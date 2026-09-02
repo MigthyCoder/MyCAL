@@ -172,9 +172,10 @@ export function WeekGrid({
       if (d.kind === 'create') {
         const a = Math.min(d.a, d.b)
         const b = Math.max(d.a, d.b)
-        const start = a
-        const end = b - a < 15 ? a + 45 : b
-        onCreate({ date: dateKey(days[d.day]), startMin: start, endMin: Math.min(end, DAY_END_MIN) })
+        // A click on empty space is how you dismiss whatever you were looking at.
+        // Treating it as "make me a block" ambushes you every single time.
+        if (b - a < 10) return
+        onCreate({ date: dateKey(days[d.day]), startMin: a, endMin: Math.min(b, DAY_END_MIN) })
       } else if (d.kind === 'move') {
         if (!d.moved) { setActiveKey(d.occ.key); return }
         const target = dateKey(days[d.day])
@@ -431,6 +432,16 @@ export function WeekGrid({
                   setDrag({ kind: 'create', day: i, a: pt.min, b: pt.min })
                 }}
                 onMouseLeave={() => setHoverKey(null)}
+                onDoubleClick={(e) => {
+                  if ((e.target as HTMLElement).closest('.block')) return
+                  const pt = pointToTime(e.clientX, e.clientY)
+                  if (!pt) return
+                  onCreate({
+                    date: dateKey(days[i]),
+                    startMin: pt.min,
+                    endMin: Math.min(pt.min + 45, DAY_END_MIN),
+                  })
+                }}
               >
                 {HOURS.map((h) => (
                   <div key={h}>

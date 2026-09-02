@@ -3,7 +3,7 @@ import type { Occurrence } from '../lib/occurrences'
 import { buildOccurrences } from '../lib/occurrences'
 import { getDB, reschedule, rescheduleIntoPeriod } from '../lib/store'
 import { fmtRange, fmtTime, parseKey } from '../lib/time'
-import { Seg, Sheet, TimeField } from './ui'
+import { Sheet, TimeField } from './ui'
 
 interface Slot {
   label: string
@@ -82,7 +82,9 @@ export function RescheduleSheet({
   const [duration, setDuration] = useState(initial?.durationMin ?? occ.endMin - occ.startMin)
   const [why, setWhy] = useState(initial?.why ?? '')
   const [intoPeriod, setIntoPeriod] = useState<Occurrence | null>(null)
-  const [priority, setPriority] = useState<'first' | 'after'>('first')
+  // Straight onto the end of that Flex's plan. Deciding the order is a thing you
+  // do while looking at the plan, not while moving something into it.
+  const priority = 'after' as const
   const now = useMemo(() => new Date(), [])
 
   const slots = useMemo(
@@ -160,26 +162,16 @@ export function RescheduleSheet({
           </div>
           {intoPeriod.notes.length > 0 && (
             <>
-              <div className="slotlab">Already planned there</div>
+              <div className="slotlab">That Flex's plan will be</div>
               <ol className="planpreview">
-                {(priority === 'first'
-                  ? [occ.title, ...intoPeriod.notes.map((n) => n.text)]
-                  : [...intoPeriod.notes.map((n) => n.text), occ.title]
-                ).map((t, i) => (
+                {[...intoPeriod.notes.map((n) => n.text), occ.title].map((t, i) => (
                   <li key={i} className={t === occ.title ? 'incoming' : ''}>
                     {t}
                   </li>
                 ))}
               </ol>
-              <div style={{ marginTop: 8 }}>
-                <Seg
-                  value={priority}
-                  options={[
-                    { value: 'first' as const, label: 'Do this first' },
-                    { value: 'after' as const, label: 'After what’s there' },
-                  ]}
-                  onChange={setPriority}
-                />
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.5 }}>
+                Added at the end. Shuffle the order any time from the Flex itself.
               </div>
             </>
           )}

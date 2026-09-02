@@ -263,7 +263,7 @@ export default function App() {
       />
 
       <div className="footer">
-        <span>Drag empty time to add</span>
+        <span>Drag empty time to add — or double-click it</span>
         <span>Click a block to write on that day</span>
         <span>Double-click for everything else</span>
         <span>Click a date to expand it</span>

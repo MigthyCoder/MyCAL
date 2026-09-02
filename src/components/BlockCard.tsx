@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Placed } from '../lib/layout'
+import type { MarkerType } from '../lib/types'
 import { CATEGORY_META, FLEX_OPTIONS } from '../lib/seed'
 import { DAY_START_MIN, fmtRange, fmtTime, parseKey } from '../lib/time'
 import { clearOutcome, setOutcome, setQuickNote, patchOverride } from '../lib/store'
 
 /** Width the hover rail claims, in px. The block slides left by this much so
  *  there's somewhere to click to add something beside it. */
+/** Which part of a Flex a line belongs to, so the plan and the answer don't read
+ *  as one undifferentiated block of text. */
+function flexLineClass(line: string): string {
+  if (line.startsWith('Did:')) return 'did'
+  if (line === 'Planned') return 'planlabel'
+  if (/^\d+\./.test(line)) return 'planitem'
+  return 'plan'
+}
+
 export const RAIL_W = 34
 /** How much of the host block stays visible down the left of a rider. */
 export const SLIVER = 18
@@ -139,11 +149,14 @@ export function BlockCard({
   // what you did is the entire point of writing them down.
   const subLines: string[] = []
   if (isFlex) {
-    // A Flex can hold several things in the order you mean to do them, so they
-    // read as a numbered plan rather than one blurred line.
-    occ.notes.forEach((n, i) =>
-      subLines.push(occ.notes.length > 1 ? `${i + 1}. ${n.text}` : `Planned: ${n.text}`),
-    )
+    // Always labelled. A bare numbered list loses the thing that makes a Flex
+    // worth reading — that this was the intent, and that below it is the answer.
+    if (occ.notes.length === 1) {
+      subLines.push(`Planned: ${occ.notes[0].text}`)
+    } else if (occ.notes.length > 1) {
+      subLines.push('Planned')
+      occ.notes.forEach((n, i) => subLines.push(`${i + 1}. ${n.text}`))
+    }
     if (occ.did) subLines.push(`Did: ${occ.did}`)
   } else if (occ.notes.length > 0) {
     for (const n of occ.notes) subLines.push(n.text)
@@ -151,13 +164,13 @@ export function BlockCard({
     subLines.push(occ.fallbackSubtitle)
   }
 
-  // The loudest label gets a chip on the title line so the day reads at a glance;
-  // a count says there's more than one without trying to draw them all up there.
-  const RANK: Record<string, number> = { test: 0, quiz: 1, due: 2, presentation: 3 }
-  const labelled = occ.notes
-    .filter((n) => n.marker)
-    .sort((a, b) => RANK[a.marker!] - RANK[b.marker!])
-  const chief = labelled[0]?.marker
+  // One chip per KIND of thing, not one chip and a count of everything else — a
+  // test and a due date are different facts about the day and both deserve
+  // saying. Two of the same kind collapse into "DUE (2)".
+  const ORDER: MarkerType[] = ['test', 'quiz', 'due', 'presentation']
+  const tally = new Map<MarkerType, number>()
+  for (const n of occ.notes) if (n.marker) tally.set(n.marker, (tally.get(n.marker) ?? 0) + 1)
+  const chips = ORDER.filter((t) => tally.has(t)).map((t) => ({ type: t, n: tally.get(t)! }))
   const subLine = subLines[0]
 
   const movedTail =
@@ -280,12 +293,7 @@ export function BlockCard({
         <span className="tname">{occ.title}</span>
         {/* The chip lives on the title line — on its own row it pushes the note
             out of any block shorter than an hour. */}
-        {chief && !compact && (
-          <span className={`marker ${chief === 'due' ? 'due' : ''}`}>
-            {chief.toUpperCase()}
-            {labelled.length > 1 ? ` +${labelled.length - 1}` : ''}
-          </span>
-        )}
+
         {/* Where a moved block went is the whole point of leaving it behind, so
             it shows even when the block is too short for a second line. */}
         {movedTail && !active ? (
@@ -296,6 +304,17 @@ export function BlockCard({
           )
         )}
       </div>
+      )}
+
+      {chips.length > 0 && !compact && !tight && (
+        <div className="markers">
+          {chips.map((c) => (
+            <span className={`marker ${c.type}`} key={c.type}>
+              {c.type === 'presentation' ? 'PRESENT' : c.type.toUpperCase()}
+              {c.n > 1 ? ` (${c.n})` : ''}
+            </span>
+          ))}
+        </div>
       )}
 
       {active && !occ.pin ? (
@@ -386,7 +405,7 @@ export function BlockCard({
                   </div>
                 ))
               : subLines.map((line, i) => (
-                  <div className={`sub ${isFlex && i > 0 ? 'did' : ''}`} key={i}>
+                  <div className={`sub ${isFlex ? flexLineClass(line) : ''}`} key={i}>
                     {line}
                   </div>
                 )))}

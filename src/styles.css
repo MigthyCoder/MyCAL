@@ -355,10 +355,10 @@ input, textarea, select { font: inherit; color: inherit; }
   overflow: hidden;
 }
 
+.block .markers { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 1px; }
 .block .marker {
   display: inline-block;
   flex: none;
-  margin-left: auto;
   padding: 0 4px;
   border-radius: 3px;
   font-size: 9.5px;
@@ -373,6 +373,7 @@ input, textarea, select { font: inherit; color: inherit; }
   text-overflow: ellipsis;
 }
 .block .marker.due { background: rgba(255, 176, 32, 0.18); color: #ffc964; border-color: rgba(255, 176, 32, 0.3); }
+.block .marker.presentation { background: rgba(120, 150, 255, 0.18); color: #9db8ff; border-color: rgba(120, 150, 255, 0.32); }
 
 /* overlap / side blocks */
 .block .why {
@@ -1322,3 +1323,13 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 
 .plandone { color: var(--ok) !important; border-color: rgba(62, 207, 142, 0.4) !important; }
 .plandone:hover { background: rgba(62, 207, 142, 0.14) !important; }
+
+.block .sub.planlabel {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: hsl(var(--h) 26% 62%);
+  margin-top: 1px;
+}
+.block .sub.planitem { padding-left: 8px; color: hsl(var(--h) 28% 80%); }

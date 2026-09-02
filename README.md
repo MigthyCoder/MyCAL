@@ -52,10 +52,14 @@ thing to do with it:
 
 ```
 FLEX
+PLANNED
 1. Calc HW
 2. English essay draft
 Did: Calc HW, English essay draft
 ```
+
+It always says **Planned** and **Did**, however many items there are — the labels
+are what make it readable months later.
 
 Reorder with ↑ ↓ in the editor. After it passes, one tap answers it — **✓ The
 plan** records what you'd written, or Friends / Study–work / Personal, or type
@@ -70,8 +74,8 @@ Four ways, because "when" isn't always a time you know off the top of your head:
   you never have to go and look up when Flex is on a block day. The task goes
   *into* that period's plan rather than stacking a block on top of it — Flex is
   already the slot for doing your own work, so laying a box over it says nothing.
-  If something's planned there already you choose **do this first** or **after
-  what's there**, with a preview of the resulting order.
+  It lands at the end of that Flex's plan, with a preview of the result; reorder
+  from the Flex itself whenever, rather than having to decide mid-move.
 - **An open gap.** Real holes in that day, found by merging what's booked and
   reporting what's left, filtered to slots your task actually fits in.
 - **A time you type.** As before.
@@ -102,7 +106,8 @@ Glance first, interact second. The default state should tell you everything.
 
 | | |
 |---|---|
-| Drag empty time | new block |
+| Drag empty time | new block — a plain **click** just dismisses, it never creates one |
+| Double-click empty time | new 45-minute block there |
 | **Long-press a block (phone)** | it lifts off the grid and follows your finger — drag up or down to move it in the day, or onto a day in the week strip to move it to that day |
 | **Tick a to-do's box** | done — one tap, and tap again to undo |
 | **Tap a to-do's text** | its editor: rename, move, drop, delete |
@@ -140,15 +145,17 @@ isn't there. A cascaded block hides the clock on whatever it covers, since half 
 time range reads worse than none. A rider never gets a rail of its own — an
 overlap on an overlap isn't a thing.
 
-A day can hold as many notes as it needs — a test *and* a pset due *and* something
-to ask about is an ordinary Wednesday. Each is a line, coloured by what it is, and
-the loudest label goes on the title as a chip:
+A day can hold as many notes as it needs — a test *and* two things due *and*
+something to ask about is an ordinary Wednesday. Each is a line coloured by what
+it is, and each *kind* gets its own chip, because a test and a due date are
+different facts and both deserve saying:
 
 ```
-AP CALC BC              TEST +1
+AP CALCULUS BC
+[TEST] [DUE (2)]
 ● Integrals unit 3
-● Pset 7
-  Ask Lasnier about the grade correction
+● 9.1 homework
+● Study guide
 ```
 
 Clicking a block to jot only ever touches the first *unlabelled* note, so quickly
