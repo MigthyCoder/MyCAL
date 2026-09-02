@@ -220,6 +220,18 @@ export async function verifyCode(email: string, input: string) {
   if (error) throw error
 }
 
+/**
+ * Put a password on the account you're already signed into. An account created
+ * by an emailed link has no password, so a second device has nothing to sign in
+ * with — this is what gives it one.
+ */
+export async function setPassword(password: string) {
+  const sb = await client()
+  if (!sb) throw new Error('Sync is not configured')
+  const { error } = await sb.auth.updateUser({ password })
+  if (error) throw error
+}
+
 export async function signOut() {
   const sb = await client()
   await sb?.auth.signOut()

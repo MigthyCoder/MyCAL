@@ -6,6 +6,7 @@ import {
   createAccount,
   signIn,
   signInWithPassword,
+  setPassword as saveAccountPassword,
   signOut,
   verifyCode,
   type SyncState,
@@ -48,6 +49,23 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState('')
   const [needsAccount, setNeedsAccount] = useState(false)
   const [emailMode, setEmailMode] = useState(false)
+  const [newPw, setNewPw] = useState('')
+  const [pwSaved, setPwSaved] = useState(false)
+
+  const savePassword = async () => {
+    if (newPw.length < 6) return
+    setBusy(true)
+    setErr(null)
+    try {
+      await saveAccountPassword(newPw)
+      setPwSaved(true)
+      setNewPw('')
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
   const [sent, setSent] = useState(false)
   const [code, setCode] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -201,6 +219,45 @@ export function SyncSheet({ onClose }: { onClose: () => void }) {
             <br />
             {sync.error ? `Last error: ${sync.error}` : `Last synced ${ago(sync.lastSync)}`}
           </div>
+          <h4>Password for your other devices</h4>
+          {pwSaved ? (
+            <div className="note" style={{ borderLeftColor: 'var(--ok)' }}>
+              <span className="k">Saved</span>
+              Sign in on your phone with <strong>{sync.email}</strong> and this password.
+            </div>
+          ) : (
+            <>
+              <div className="row">
+                <input
+                  className="field grow"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPw}
+                  onChange={(e) => setNewPw(e.target.value)}
+                  placeholder="At least 6 characters"
+                  onKeyDown={(e) => { if (e.key === 'Enter') void savePassword() }}
+                />
+                <button
+                  className="btn solid"
+                  onClick={() => void savePassword()}
+                  disabled={busy || newPw.length < 6}
+                >
+                  {busy ? 'Saving…' : 'Set it'}
+                </button>
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.55 }}>
+                If you signed in here with an emailed link, this account has no
+                password yet — so there's nothing for your phone to sign in with.
+                Set one here and use it there.
+              </div>
+            </>
+          )}
+          {err && (
+            <div className="note" style={{ marginTop: 12, borderLeftColor: '#ff8f8f', color: '#ff8f8f' }}>
+              {err}
+            </div>
+          )}
+
           <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 14, lineHeight: 1.55 }}>
             Changes push a second or two after you make them, and land on your other
             device without a reload. Blocks added on both devices are kept — only
