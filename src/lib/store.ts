@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { DB, Marker, Outcome, Override, SchoolConfig, Series } from './types'
+import type { DayNote, DB, MarkerType, Outcome, Override, SchoolConfig, Series } from './types'
 import type { Occurrence } from './occurrences'
 
 const KEY = 'mycal.db.v1'
@@ -68,6 +68,19 @@ function migrateReminders(parsed: DB): Pick<DB, 'series' | 'overrides' | 'remind
   return { series, overrides, reminders: [] }
 }
 
+/** A day used to hold one note and one marker. Both are just notes now, one of
+ *  which happens to be labelled. */
+function migrateNotes(overrides: Override[]): Override[] {
+  return overrides.map((o) => {
+    if (o.notes || (!o.subtitle && !o.marker)) return o
+    const notes: DayNote[] = []
+    if (o.marker) notes.push({ id: uid(), text: o.marker.label, marker: o.marker.type })
+    if (o.subtitle) notes.push({ id: uid(), text: o.subtitle })
+    const { subtitle: _s, marker: _m, ...rest } = o
+    return { ...rest, notes }
+  })
+}
+
 function load(): DB {
   const fresh = emptyDB()
   try {
@@ -80,7 +93,10 @@ function load(): DB {
       ...parsed,
       startedOn: parsed.startedOn || fresh.startedOn,
       density: parsed.density || fresh.density,
-      ...migrateReminders(parsed),
+      ...(() => {
+        const m = migrateReminders(parsed)
+        return { ...m, overrides: migrateNotes(m.overrides) }
+      })(),
       school: { ...DEFAULT_SCHOOL, ...(parsed.school ?? {}) },
     }
   } catch {
@@ -177,16 +193,32 @@ export function unsetOverrideFields(seriesId: string, date: string, fields: (key
   commit({ ...db, overrides: next })
 }
 
-export function setSubtitle(occ: Occurrence, text: string) {
-  const trimmed = text.trim()
-  if (!trimmed) unsetOverrideFields(occ.series.id, occ.date, ['subtitle'])
-  else patchOverride(occ.series.id, occ.date, { subtitle: trimmed })
+export function setDayNotes(occ: Occurrence, notes: DayNote[]) {
+  const cleaned = notes.filter((n) => n.text.trim()).map((n) => ({ ...n, text: n.text.trim() }))
+  if (cleaned.length === 0) unsetOverrideFields(occ.series.id, occ.date, ['notes'])
+  else patchOverride(occ.series.id, occ.date, { notes: cleaned })
 }
 
-export function setMarker(occ: Occurrence, marker: Marker | null) {
-  if (!marker) unsetOverrideFields(occ.series.id, occ.date, ['marker'])
-  else patchOverride(occ.series.id, occ.date, { marker })
+/**
+ * The one-tap jot from clicking a block. It only ever touches the first UNLABELLED
+ * note, so quickly writing "ask about grade" can't overwrite the test you already
+ * put on that day.
+ */
+export function setQuickNote(occ: Occurrence, text: string) {
+  const t = text.trim()
+  const notes = [...occ.notes]
+  const i = notes.findIndex((n) => !n.marker)
+  if (i === -1) {
+    if (t) notes.push({ id: uid(), text: t })
+  } else if (t) {
+    notes[i] = { ...notes[i], text: t }
+  } else {
+    notes.splice(i, 1)
+  }
+  setDayNotes(occ, notes)
 }
+
+export const newNote = (text = '', marker?: MarkerType): DayNote => ({ id: uid(), text, marker })
 
 /**
  * Rename. What that means depends on what you're renaming: a class is stored in
@@ -222,7 +254,7 @@ export function duplicateOccurrence(occ: Occurrence): Series {
     kind: occ.series.kind,
     category: occ.series.category,
     schoolRole: null,
-    defaultSubtitle: occ.subtitle,
+    defaultSubtitle: occ.notes.find((n) => !n.marker)?.text ?? occ.fallbackSubtitle,
     location: occ.series.location,
     startMin: occ.startMin,
     endMin: occ.endMin,
@@ -262,7 +294,7 @@ export function reschedule(
     kind: occ.series.kind,
     category: occ.series.category,
     schoolRole: occ.series.schoolRole,
-    defaultSubtitle: occ.subtitle,
+    defaultSubtitle: occ.notes.find((n) => !n.marker)?.text ?? occ.fallbackSubtitle,
     location: occ.series.location,
     startMin: toStartMin,
     endMin: toStartMin + duration,
@@ -304,7 +336,7 @@ export function moveOccurrenceToDate(occ: Occurrence, toDate: string, startMin: 
     kind: occ.series.kind,
     category: occ.series.category,
     schoolRole: occ.series.schoolRole,
-    defaultSubtitle: occ.subtitle,
+    defaultSubtitle: occ.notes.find((n) => !n.marker)?.text ?? occ.fallbackSubtitle,
     location: occ.series.location,
     startMin,
     endMin: startMin + duration,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Placed } from '../lib/layout'
 import { CATEGORY_META, FLEX_OPTIONS } from '../lib/seed'
 import { DAY_START_MIN, fmtRange, fmtTime, parseKey } from '../lib/time'
-import { clearOutcome, setOutcome, setSubtitle, patchOverride } from '../lib/store'
+import { clearOutcome, setOutcome, setQuickNote, patchOverride } from '../lib/store'
 
 /** Width the hover rail claims, in px. The block slides left by this much so
  *  there's somewhere to click to add something beside it. */
@@ -81,7 +81,7 @@ export function BlockCard({
     // otherwise you'd have to clear "Open" before typing every single time.
     const seed = isFlex
       ? (occ.state !== 'future' && occ.state !== 'now' ? (occ.did ?? '') : (occ.planned ?? ''))
-      : (occ.ownSubtitle ?? '')
+      : (occ.notes.find((n) => !n.marker)?.text ?? '')
     setDraft(seed)
     const el = inputRef.current
     if (el) { el.focus(); el.select() }
@@ -101,7 +101,7 @@ export function BlockCard({
         ...(reporting && val ? { outcome: 'finished' as const } : {}),
       })
     } else {
-      setSubtitle(occ, draft)
+      setQuickNote(occ, draft)
     }
     onDismiss()
   }
@@ -134,11 +134,19 @@ export function BlockCard({
   if (isFlex) {
     if (occ.planned) subLines.push(`Planned: ${occ.planned}`)
     if (occ.did) subLines.push(`Did: ${occ.did}`)
-  } else {
-    // A test beats a room number for the one line you get.
-    const one = occ.marker?.label || occ.subtitle
-    if (one) subLines.push(one)
+  } else if (occ.notes.length > 0) {
+    for (const n of occ.notes) subLines.push(n.text)
+  } else if (occ.fallbackSubtitle) {
+    subLines.push(occ.fallbackSubtitle)
   }
+
+  // The loudest label gets a chip on the title line so the day reads at a glance;
+  // a count says there's more than one without trying to draw them all up there.
+  const RANK: Record<string, number> = { test: 0, quiz: 1, due: 2, presentation: 3 }
+  const labelled = occ.notes
+    .filter((n) => n.marker)
+    .sort((a, b) => RANK[a.marker!] - RANK[b.marker!])
+  const chief = labelled[0]?.marker
   const subLine = subLines[0]
 
   const movedTail =
@@ -261,9 +269,10 @@ export function BlockCard({
         <span className="tname">{occ.title}</span>
         {/* The chip lives on the title line — on its own row it pushes the note
             out of any block shorter than an hour. */}
-        {occ.marker && !compact && (
-          <span className={`marker ${occ.marker.type === 'due' ? 'due' : ''}`}>
-            {occ.marker.type.toUpperCase()}
+        {chief && !compact && (
+          <span className={`marker ${chief === 'due' ? 'due' : ''}`}>
+            {chief.toUpperCase()}
+            {labelled.length > 1 ? ` +${labelled.length - 1}` : ''}
           </span>
         )}
         {/* Where a moved block went is the whole point of leaving it behind, so
@@ -290,7 +299,7 @@ export function BlockCard({
                 ? reporting
                   ? 'What did you actually do?'
                   : 'Plan for this flex…'
-                : occ.series.defaultSubtitle || 'Add a note for this day…'
+                : occ.fallbackSubtitle || 'Add a note for this day…'
             }
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -346,11 +355,17 @@ export function BlockCard({
         <>
           {!compact &&
             !tight &&
-            subLines.map((line, i) => (
-              <div className={`sub ${i > 0 ? 'did' : ''}`} key={i}>
-                {line}
-              </div>
-            ))}
+            (occ.notes.length > 0
+              ? occ.notes.map((n) => (
+                  <div className={`sub ${n.marker ? `flag ${n.marker}` : ''}`} key={n.id}>
+                    {n.text}
+                  </div>
+                ))
+              : subLines.map((line, i) => (
+                  <div className={`sub ${isFlex && i > 0 ? 'did' : ''}`} key={i}>
+                    {line}
+                  </div>
+                )))}
           {occ.state === 'needs-outcome' && !compact && !tight && (
             <div className="needsflag">Needs outcome</div>
           )}

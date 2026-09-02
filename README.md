@@ -120,8 +120,20 @@ isn't there. A cascaded block hides the clock on whatever it covers, since half 
 time range reads worse than none. A rider never gets a rail of its own — an
 overlap on an overlap isn't a thing.
 
-Tests and due dates get a chip on the title line rather than a plain note, because
-`AP CALC BC · TEST · Integrals unit 3` should not look like `AP CALC BC · Lasnier C12`.
+A day can hold as many notes as it needs — a test *and* a pset due *and* something
+to ask about is an ordinary Wednesday. Each is a line, coloured by what it is, and
+the loudest label goes on the title as a chip:
+
+```
+AP CALC BC              TEST +1
+● Integrals unit 3
+● Pset 7
+  Ask Lasnier about the grade correction
+```
+
+Clicking a block to jot only ever touches the first *unlabelled* note, so quickly
+writing "ask about grade" can't overwrite the test you already put there. Labels
+and extra rows live in the editor.
 
 ## Notes always wrap
 

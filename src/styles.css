@@ -1230,3 +1230,26 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 }
 .titlefield:hover { border-color: var(--line-mid); }
 .titlefield:focus { border-color: var(--line-strong); background: var(--bg); }
+
+/* A labelled note reads hotter than a plain one, so a test never looks like a
+   room number even when they're stacked in the same block. */
+.block .sub.flag { color: hsl(var(--h) 30% 84%); }
+.block .sub.flag::before {
+  content: '';
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: 1px;
+  background: currentColor;
+}
+.block .sub.flag.test, .block .sub.flag.quiz { color: #ff9d9d; }
+.block .sub.flag.due { color: #ffc964; }
+.block .sub.flag.presentation { color: #9db8ff; }
+
+.notelist { display: flex; flex-direction: column; gap: 6px; }
+.noterow { display: grid; grid-template-columns: 104px 1fr 26px; gap: 6px; align-items: center; }
+.notekind { padding: 8px 9px; font-size: 12.5px; }
+@media (max-width: 760px) {
+  .noterow { grid-template-columns: 112px 1fr 30px; }
+}

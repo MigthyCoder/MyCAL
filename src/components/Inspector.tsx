@@ -8,23 +8,15 @@ import {
   clearOutcome,
   deleteSeries,
   patchOverride,
-  setMarker,
   setOutcome,
-  setSubtitle,
   unsetOverrideFields,
   updateSeries,
 } from '../lib/store'
 import { fmtRange, fmtTime, parseKey } from '../lib/time'
 import { CategoryPicker, DayPicker, Seg, Sheet, TimeField } from './ui'
 import { FLEX_OPTIONS } from '../lib/seed'
-
-const MARKERS: { value: MarkerType | 'none'; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'test', label: 'Test' },
-  { value: 'quiz', label: 'Quiz' },
-  { value: 'due', label: 'Due' },
-  { value: 'presentation', label: 'Present' },
-]
+import { newNote, setDayNotes } from '../lib/store'
+import type { DayNote } from '../lib/types'
 
 export function Inspector({
   occ,
@@ -39,12 +31,12 @@ export function Inspector({
   const isFlex = s.schoolRole === 'flex'
   const day = parseKey(occ.date)
 
-  const [subtitle, setSub] = useState(occ.subtitle ?? '')
+  const [notes, setNotes] = useState<DayNote[]>(() =>
+    occ.notes.length ? occ.notes.map((n) => ({ ...n })) : [newNote()],
+  )
   const [after, setAfter] = useState(occ.afterNote ?? '')
   const [planned, setPlanned] = useState(occ.planned ?? '')
   const [did, setDid] = useState(occ.did ?? '')
-  const [mType, setMType] = useState<MarkerType | 'none'>(occ.marker?.type ?? 'none')
-  const [mLabel, setMLabel] = useState(occ.marker?.label ?? '')
   const [title, setTitle] = useState(occ.title)
   const [titleScope, setTitleScope] = useState<'series' | 'day'>('series')
   const [location, setLocation] = useState(s.location ?? '')
@@ -59,7 +51,7 @@ export function Inspector({
     if (!occ.generated && (s.location ?? '') !== location.trim()) {
       updateSeries(s.id, { location: location.trim() || undefined })
     }
-    if (!isFlex) setSubtitle(occ, subtitle)
+    if (!isFlex) setDayNotes(occ, notes)
     else {
       const reported = did.trim()
       patchOverride(s.id, occ.date, {
@@ -73,9 +65,6 @@ export function Inspector({
     }
     if (after.trim()) patchOverride(s.id, occ.date, { afterNote: after.trim() })
     else unsetOverrideFields(s.id, occ.date, ['afterNote'])
-
-    if (mType === 'none') setMarker(occ, null)
-    else setMarker(occ, { type: mType, label: mLabel.trim() })
 
     if (!occ.generated && (s.overlapReason ?? '') !== overlap.trim()) {
       updateSeries(s.id, { overlapReason: overlap.trim().toUpperCase() || undefined })
@@ -152,36 +141,59 @@ export function Inspector({
         </>
       ) : (
         <>
-          <h4>Note for this day</h4>
-          <input
-            className="field"
-            value={subtitle}
-            onChange={(e) => setSub(e.target.value)}
-            placeholder={s.defaultSubtitle ? `Default: ${s.defaultSubtitle}` : 'Shows under the title'}
-            autoFocus
-          />
+          <h4>On this day</h4>
+          <div className="notelist">
+            {notes.map((n, i) => (
+              <div className="noterow" key={n.id}>
+                <select
+                  className="field notekind"
+                  value={n.marker ?? ''}
+                  onChange={(e) =>
+                    setNotes((ns) =>
+                      ns.map((x, j) =>
+                        j === i
+                          ? { ...x, marker: (e.target.value || undefined) as MarkerType | undefined }
+                          : x,
+                      ),
+                    )
+                  }
+                >
+                  <option value="">Note</option>
+                  <option value="test">Test</option>
+                  <option value="quiz">Quiz</option>
+                  <option value="due">Due</option>
+                  <option value="presentation">Present</option>
+                </select>
+                <input
+                  className="field"
+                  value={n.text}
+                  autoFocus={i === 0}
+                  onChange={(e) =>
+                    setNotes((ns) => ns.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))
+                  }
+                  placeholder={
+                    n.marker ? 'Integrals unit 3' : s.defaultSubtitle ? `Default: ${s.defaultSubtitle}` : 'Anything to remember'
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setNotes((ns) => [...ns, newNote()])
+                  }}
+                />
+                <button
+                  className="rowx"
+                  title="Remove"
+                  onClick={() => setNotes((ns) => (ns.length === 1 ? [newNote()] : ns.filter((_, j) => j !== i)))}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+          <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => setNotes((ns) => [...ns, newNote()])}>
+            + Another
+          </button>
         </>
       )}
 
-      {s.schoolRole === 'class' && (
-        <>
-          <h4>Test / due marker</h4>
-          <div className="row">
-            <div className="grow">
-              <Seg value={mType} options={MARKERS} onChange={setMType} />
-            </div>
-          </div>
-          {mType !== 'none' && (
-            <input
-              className="field"
-              style={{ marginTop: 8 }}
-              value={mLabel}
-              onChange={(e) => setMLabel(e.target.value)}
-              placeholder="Integrals unit 3"
-            />
-          )}
-        </>
-      )}
 
       <h4>{occ.pin ? 'When' : 'Time'}</h4>
       <div className="row">

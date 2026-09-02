@@ -19,6 +19,17 @@ export interface Marker {
   label: string
 }
 
+/**
+ * One thing written against a day. A plain jot has no marker; a test or a due
+ * date is the same thing wearing a label. A day can hold several — a test and a
+ * pset due and something to ask about is an ordinary Wednesday.
+ */
+export interface DayNote {
+  id: string
+  text: string
+  marker?: MarkerType
+}
+
 /** A Series is the definition of a block. A one-off block is just a series whose
  *  recurrence is null. Nothing about a series changes when you edit a single day —
  *  that's what Override is for. */
@@ -55,8 +66,11 @@ export interface Override {
   date: string // 'YYYY-MM-DD'
 
   // --- glanceable layer ---
-  subtitle?: string // inline note, replaces defaultSubtitle for this day only
-  marker?: Marker // TEST / DUE / QUIZ — louder than a subtitle
+  notes?: DayNote[]
+  /** @deprecated single-note shape, migrated into `notes` on load */
+  subtitle?: string
+  /** @deprecated single-marker shape, migrated into `notes` on load */
+  marker?: Marker
 
   // --- this-day-only reshaping ---
   title?: string

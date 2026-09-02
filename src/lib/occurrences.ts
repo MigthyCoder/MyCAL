@@ -1,4 +1,4 @@
-import type { DB, Marker, Outcome, Series } from './types'
+import type { DayNote, DB, Outcome, Series } from './types'
 import { dateKey, parseKey } from './time'
 import { scheduleFor, type Slot } from './bell'
 
@@ -16,10 +16,10 @@ export interface Occurrence {
   series: Series
   date: string
   title: string
-  subtitle?: string
-  /** The note written for THIS day, ignoring the series default. */
-  ownSubtitle?: string
-  marker?: Marker
+  /** Everything written against this specific day — jots and labelled items. */
+  notes: DayNote[]
+  /** What to show under the title when the day has nothing written on it. */
+  fallbackSubtitle?: string
   startMin: number
   endMin: number
   requiresOutcome: boolean
@@ -115,9 +115,8 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
       series,
       date,
       title: ov?.title ?? series.title,
-      subtitle: ov?.subtitle ?? series.defaultSubtitle,
-      ownSubtitle: ov?.subtitle,
-      marker: ov?.marker,
+      notes: ov?.notes ?? [],
+      fallbackSubtitle: series.defaultSubtitle,
       startMin,
       endMin,
       requiresOutcome: needs,
@@ -129,7 +128,7 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
       afterNote: ov?.afterNote,
       state,
       overlapReason: series.overlapReason,
-      edited: Boolean(ov && (ov.subtitle !== undefined || ov.title !== undefined || ov.marker)),
+      edited: Boolean(ov && ((ov.notes?.length ?? 0) > 0 || ov.title !== undefined)),
       generated,
       pin: Boolean(series.pin),
     })
