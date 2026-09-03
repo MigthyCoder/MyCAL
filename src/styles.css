@@ -1392,3 +1392,35 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   outline-offset: 1px;
   border-color: var(--line-strong);
 }
+
+/* =========================================== finish the thumb-sized pass */
+
+/* The existing mobile block sizes up .btn, .field, .swatch and friends, but a
+   few of the controls you actually reach for most were left behind: the row
+   controls on a note (~23px), the three plan buttons pinned to 26px columns,
+   and .pindot at 20px, which is the primary "mark this done" target on every
+   block. 44px is the floor. */
+@media (max-width: 760px) {
+  .btn.sm { min-height: 44px; }
+  .dowpick button { width: 44px; min-height: 44px; }
+  .swatch { width: 44px; height: 44px; }
+
+  /* Row controls sit in their own line with room to grow, so widen them for
+     real rather than faking the hit area. */
+  .rowx { min-width: 44px; min-height: 44px; padding: 4px 8px; }
+  .noterow { grid-template-columns: 112px 1fr 44px; }
+  .noterow.plan { grid-template-columns: 22px 1fr 44px 44px 44px; gap: 4px; }
+
+  /* The dot is meant to read small — it is a status light, not a button face.
+     Keep the visual at 24px and push the touch area out to 44px underneath it,
+     which works here because the dot sits alone in the corner of a block with
+     nothing adjacent to steal the tap. */
+  .pindot { width: 24px; height: 24px; border-radius: 7px; position: relative; }
+  .pindot::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 44px; height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
