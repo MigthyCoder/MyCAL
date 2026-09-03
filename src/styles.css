@@ -8,7 +8,12 @@
   --line-strong: rgba(255, 255, 255, 0.18);
   --text: #eceef4;
   --text-2: #a7abb8;
-  --text-3: #6f7480;
+  /* Was #6f7480, which lands at 4.06:1 on --panel and 4.26:1 on --bg: under the
+     4.5:1 AA floor. It carries the hour gutter, every sheet's section headings,
+     and all the explanatory copy, none of which is ever large enough for the
+     large-text exemption. #797e8b is the smallest step that clears AA on the
+     lighter of the two surfaces (4.71:1) and still reads as the dim tier. */
+  --text-3: #797e8b;
   --now: #ff7a45;
   --warn: #ffb020;
   --ok: #3ecf8e;
