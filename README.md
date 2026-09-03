@@ -36,13 +36,27 @@ having journaled anything.
 
 ## School
 
-`My classes` sets up the whole year from the official MHHS 2026–27 bell schedule.
-You name your seven classes **once** (5th period is SUCCESS, every day) and MyCAL
-places them correctly on every date:
+`My classes` sets up the whole year from **your** school's bell schedule. Build
+the day shapes your school runs — a regular day, a block day, an early release —
+say which shape each weekday uses, then name your classes **once** and MyCAL
+places them correctly on every date.
+
+A day shape is one version of the school day: a list of periods with a name, a
+start, an end, and what it counts as (class, lunch, study hall, advisory). Give
+a class the same period number in every shape it appears in and its name — and
+any note on it — follows it onto block days.
+
+MyCAL ships seeded with the MHHS 2026–27 schedule, the school it was first built
+for, both as a preset and as a worked example of an awkward timetable:
 
 - **Mon–Wed** — regular, eight short periods
 - **Thursday** — block: 1st, 2nd, Advisory, 3rd, 4th
 - **Friday** — block early release: 6th, 7th, 8th
+
+5th period is SUCCESS there every day, which is why the roster skips it — the
+period list is read off your own schedules, so a school with a plain 1–8 day
+gets all eight. **Start from scratch** in the schedule editor clears the preset
+if none of it applies to you.
 - **Rally Fridays** (10/23, 1/15, 3/19), **conferences** (10/19–20), **finals**
   (12/15–18, 5/25–28) — all dated and handled automatically
 
@@ -190,7 +204,7 @@ a class writes back to your roster, so one edit fixes all 180 days of it.
 
 ```
 src/lib/
-  bell.ts          MHHS 2026-27 bell schedules + dated exceptions
+  bell.ts          bell schedule types, resolution rules + the MHHS preset
   types.ts         Series (definition) vs Override (one specific day)
   occurrences.ts   expands series + bell schedule into dated blocks
   layout.ts        column packing for overlapping blocks
