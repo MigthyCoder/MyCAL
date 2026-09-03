@@ -1333,3 +1333,30 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   margin-top: 1px;
 }
 .block .sub.planitem { padding-left: 8px; color: hsl(var(--h) 28% 80%); }
+
+/* ============================================ respect a reduced-motion choice */
+
+/* The calendar leans on motion: sheets slide up, the rail fades in, and a block
+   that needs attention glows on a 2.6s infinite loop. That last one is the
+   problem — anything that moves forever is what actually makes people with
+   vestibular disorders sick, and WCAG asks for a way to stop it.
+
+   Collapsing durations to ~0 rather than dropping to `animation: none`, so
+   state changes still land instantly instead of disappearing. The `.needs`
+   glow keeps its brightest frame as a static ring: the warning has to stay
+   readable once the pulse is gone. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .block.needs {
+    animation: none !important;
+    box-shadow:
+      0 0 0 1px rgba(255, 176, 32, 0.45),
+      0 0 16px rgba(255, 176, 32, 0.18);
+  }
+}
