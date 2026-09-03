@@ -1602,3 +1602,48 @@ button.tasktext:hover { background: var(--raised); }
   .taskdate { min-height: 44px; width: 140px; }
   .taskwhen .rowx { min-width: 44px; min-height: 44px; }
 }
+
+/* Task colour. The dot is the current category; clicking opens the same four
+   swatches the create sheet uses, rather than a second colour vocabulary. */
+.taskcolor { position: relative; flex: none; display: inline-flex; align-items: center; }
+/* The button carries the hit area and a pseudo-element draws the dot. Sizing
+   the button to 11px and padding a wrapper does not work: a span does not
+   forward clicks to the button inside it the way a label does for its input. */
+.colordot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+.colordot::before {
+  content: '';
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: hsl(var(--h) 62% 58%);
+  transition: transform 0.13s;
+}
+.colordot:hover::before { transform: scale(1.18); }
+
+.colorpop {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 8;
+}
+
+@media (max-width: 760px) {
+  /* The dot stays small, the tap area does not. */
+  .colordot { width: 44px; height: 44px; }
+  .colordot::before { width: 14px; height: 14px; }
+  .colorpop { left: 46px; }
+}

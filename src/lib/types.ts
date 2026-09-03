@@ -124,6 +124,9 @@ export interface Task {
   /** Which day that block sits on. Outcomes are per-date, so resolving the
    *  block from this side needs the date as well as the series. */
   scheduledFor?: string
+  /** Same four categories everything else uses, so a task carries its colour
+   *  onto the grid instead of every scheduled task landing the same shade. */
+  category?: Category
 }
 
 /**

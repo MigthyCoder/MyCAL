@@ -10,7 +10,7 @@ import { TaskDock } from './components/TaskDock'
 import { SyncButton, SyncSheet } from './components/SyncSheet'
 import { MOBILE, useMedia } from './lib/useMedia'
 import { buildOccurrences, openLoops, type Occurrence } from './lib/occurrences'
-import { DENSITY_STEPS, setDensity, useDB } from './lib/store'
+import { DENSITY_STEPS, scheduleTask, setDensity, useDB } from './lib/store'
 import { CATEGORIES, CATEGORY_META } from './lib/seed'
 import { addDays, dateKey, fmtMonthRange, fmtTime, isSameDay, parseKey, startOfWeek, weekDays } from './lib/time'
 
@@ -30,6 +30,9 @@ export default function App() {
   // "Pick on calendar": the next time you choose on the grid becomes the target
   // for the move you already started, instead of creating a new block.
   const [picking, setPicking] = useState<{ occ: Occurrence; draft: ReschedDraft } | null>(null)
+  // Placing a task by dragging its box on the grid. Same shape as `picking`,
+  // which already teaches "drag anywhere, any day, any week".
+  const [placingTask, setPlacingTask] = useState<{ id: string; text: string } | null>(null)
   const [reschedInit, setReschedInit] = useState<ReschedDraft | null>(null)
   const isMobile = useMedia(MOBILE)
   const [mobileDay, setMobileDay] = useState(() => {
@@ -93,6 +96,7 @@ export default function App() {
         // sheet had to be dismissed by finding its close button. Back out one
         // layer per press, innermost first, so a nested flow unwinds the way
         // you entered it instead of collapsing all at once.
+        if (placingTask) { setPlacingTask(null); return }
         if (picking) { setPicking(null); return }
         if (schedDay) { setSchedDay(null); return }
         if (draft) { setDraft(null); return }
@@ -115,7 +119,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
     // The handler reads sheet state, so it has to be rebound when that changes
     // — with an empty dep list it closed over the initial nulls forever.
-  }, [picking, schedDay, draft, rescheduling, inspect, syncOpen, onboarding])
+  }, [placingTask, picking, schedDay, draft, rescheduling, inspect, syncOpen, onboarding])
 
   const empty = db.series.length === 0 && !db.school.enabled
 
@@ -203,6 +207,14 @@ export default function App() {
         </div>
       </div>
 
+      {placingTask && (
+        <div className="picking">
+          <b>Drag when you’ll do “{placingTask.text}”</b>
+          <span>Anywhere on the grid — any day, any week. Escape to cancel.</span>
+          <button className="btn sm ghost" onClick={() => setPlacingTask(null)}>Cancel</button>
+        </div>
+      )}
+
       {picking && (
         <div className="picking">
           <b>Pick a time for “{picking.occ.title}”</b>
@@ -233,6 +245,7 @@ export default function App() {
 
       <TaskDock
         tasks={db.tasks ?? []}
+        onSchedule={(t) => setPlacingTask({ id: t.id, text: t.text })}
         onJumpTo={(seriesId, date) => {
           const occ = occurrences.find((o) => o.series.id === seriesId && o.date === date)
           // The block may be outside the loaded window if it was scheduled for
@@ -286,6 +299,11 @@ export default function App() {
         onOpenInspector={setInspect}
         onAskReschedule={setRescheduling}
         onCreate={(d) => {
+          if (placingTask) {
+            scheduleTask(placingTask.id, d.date, d.startMin, d.endMin)
+            setPlacingTask(null)
+            return
+          }
           if (picking) {
             setReschedInit({
               date: d.date,

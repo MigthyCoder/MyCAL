@@ -5,11 +5,12 @@ import {
   clearDoneTasks,
   deleteTask,
   editTask,
-  scheduleTask,
+  setTaskCategory,
   toggleTask,
   unscheduleTask,
 } from '../lib/store'
-import { dateKey, parseKey } from '../lib/time'
+import { parseKey } from '../lib/time'
+import { CATEGORIES, CATEGORY_META } from '../lib/seed'
 
 /** "Thu Sep 3" — enough to place it without spending a whole row on a date. */
 const fmtWhen = (d: string) =>
@@ -28,10 +29,13 @@ const OPEN_KEY = 'mycal.tasks.open'
 export function TaskDock({
   tasks,
   onJumpTo,
+  onSchedule,
 }: {
   tasks: Task[]
   /** Show me the block this task became. */
   onJumpTo?: (seriesId: string, date: string) => void
+  /** Start placing this task on the grid by dragging its box. */
+  onSchedule?: (task: Task) => void
 }) {
   const [open, setOpen] = useState(() => {
     try {
@@ -43,7 +47,7 @@ export function TaskDock({
   const [draft, setDraft] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
-  const [schedulingId, setSchedulingId] = useState<string | null>(null)
+  const [coloringId, setColoringId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -135,6 +139,36 @@ export function TaskDock({
                   aria-label={`Mark "${t.text}" done`}
                 />
               </label>
+              <span className="taskcolor">
+                <button
+                  className="colordot"
+                  aria-label={`Colour of "${t.text}": ${CATEGORY_META[t.category ?? 'personal'].label}`}
+                  aria-expanded={coloringId === t.id}
+                  title={CATEGORY_META[t.category ?? 'personal'].label}
+                  // @ts-expect-error custom property
+                  style={{ '--h': CATEGORY_META[t.category ?? 'personal'].hue }}
+                  onClick={() => setColoringId(coloringId === t.id ? null : t.id)}
+                />
+                {coloringId === t.id && (
+                  <span className="colorpop">
+                    {CATEGORIES.map((c) => (
+                      <button
+                        key={c}
+                        className="swatch"
+                        title={CATEGORY_META[c].label}
+                        aria-label={CATEGORY_META[c].label}
+                        aria-pressed={(t.category ?? 'personal') === c}
+                        // @ts-expect-error custom property
+                        style={{ '--h': CATEGORY_META[c].hue }}
+                        onClick={() => {
+                          setTaskCategory(t.id, c)
+                          setColoringId(null)
+                        }}
+                      />
+                    ))}
+                  </span>
+                )}
+              </span>
               {editingId === t.id ? (
                 <input
                   className="field"
@@ -179,25 +213,11 @@ export function TaskDock({
                     ↩
                   </button>
                 </span>
-              ) : schedulingId === t.id ? (
-                <input
-                  className="field taskdate"
-                  type="date"
-                  autoFocus
-                  defaultValue={dateKey(new Date())}
-                  aria-label={`Pick a day for "${t.text}"`}
-                  onBlur={() => setSchedulingId(null)}
-                  onChange={(e) => {
-                    if (!e.target.value) return
-                    scheduleTask(t.id, e.target.value)
-                    setSchedulingId(null)
-                  }}
-                />
               ) : (
                 <button
                   className="btn sm ghost taskwhenbtn"
-                  aria-label={`Schedule "${t.text}"`}
-                  onClick={() => setSchedulingId(t.id)}
+                  aria-label={`Schedule "${t.text}" by dragging it onto the calendar`}
+                  onClick={() => onSchedule?.(t)}
                 >
                   Schedule
                 </button>

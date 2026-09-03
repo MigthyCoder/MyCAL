@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { DayNote, DB, MarkerType, Outcome, Override, SchoolConfig, Series, Task } from './types'
+import type { Category, DayNote, DB, MarkerType, Outcome, Override, SchoolConfig, Series, Task } from './types'
 import type { Occurrence } from './occurrences'
 import { MHHS_SCHEDULES, MHHS_SPECIAL_DATES, MHHS_WEEKDAYS, PRESETS, type BellSchedule } from './bell'
 
@@ -611,23 +611,32 @@ export function toggleTask(id: string) {
  * having done it, and a list that empties when you make a plan is a list that
  * lies to you.
  */
-export function scheduleTask(id: string, date: string): Series | null {
+export function scheduleTask(
+  id: string,
+  date: string,
+  startMin?: number,
+  endMin?: number,
+): Series | null {
   const task = (db.tasks ?? []).find((t) => t.id === id)
   if (!task) return null
   if (task.seriesId) return null // already on the grid; unschedule first
 
+  // Given a span you dragged, it becomes a real box, because you have just said
+  // how long you think it takes. Without one it falls back to a pin at the end
+  // of the day — a time you never claimed.
+  const sized = startMin != null && endMin != null
   const series: Series = {
     id: uid(),
     title: task.text,
     kind: 'task',
-    category: 'personal',
+    category: task.category ?? 'personal',
     schoolRole: null,
-    startMin: END_OF_DAY_MIN,
-    endMin: END_OF_DAY_MIN,
+    startMin: sized ? startMin : END_OF_DAY_MIN,
+    endMin: sized ? Math.max(endMin, startMin + 10) : END_OF_DAY_MIN,
     recurrence: null,
     anchorDate: date,
     createdAt: Date.now(),
-    pin: true,
+    ...(sized ? {} : { pin: true }),
   }
 
   commit({
@@ -638,6 +647,20 @@ export function scheduleTask(id: string, date: string): Series | null {
     ),
   })
   return series
+}
+
+/** Recolour a task. A scheduled one recolours its block too, so the two never
+ *  disagree about what kind of thing this is. */
+export function setTaskCategory(id: string, category: Category) {
+  const task = (db.tasks ?? []).find((t) => t.id === id)
+  if (!task) return
+  commit({
+    ...db,
+    tasks: (db.tasks ?? []).map((t) => (t.id === id ? { ...t, category } : t)),
+    series: task.seriesId
+      ? db.series.map((s) => (s.id === task.seriesId ? { ...s, category } : s))
+      : db.series,
+  })
 }
 
 /** Take it back off the grid. The task returns to the pile rather than being
