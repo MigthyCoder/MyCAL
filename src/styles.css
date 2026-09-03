@@ -1365,3 +1365,30 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
       0 0 16px rgba(255, 176, 32, 0.18);
   }
 }
+
+/* ==================================================== one visible focus ring */
+
+/* There was no focus token in the whole stylesheet. Buttons fell through to the
+   UA ring, which on #08090c is a thin blue line that is easy to lose, and the
+   two rules that did set `outline: none` replaced it with a border shift from
+   rgba(255,255,255,.10) to .18 — a change you cannot actually see.
+
+   One ring, in the accent already used for "now", so a keyboard user tracks the
+   same colour the calendar uses to mean "here". :focus-visible rather than
+   :focus so a mouse press never draws it. */
+:root { --focus: var(--now); }
+
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The two fields that previously removed the outline: same ring, plus the
+   border-colour cue they already had, so the field still reads as active when
+   the ring is clipped by an overflow: hidden ancestor. */
+.field:focus-visible,
+.reminput:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  border-color: var(--line-strong);
+}
