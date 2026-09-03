@@ -46,17 +46,33 @@ start, an end, and what it counts as (class, lunch, study hall, advisory). Give
 a class the same period number in every shape it appears in and its name — and
 any note on it — follows it onto block days.
 
-MyCAL ships seeded with the MHHS 2026–27 schedule, the school it was first built
-for, both as a preset and as a worked example of an awkward timetable:
+Two schools ship as presets you can start from — pick one in the schedule editor,
+or ignore both and build your own.
+
+**Mountain House HS (2026–27)**, the school this was first built for, and the
+default:
 
 - **Mon–Wed** — regular, eight short periods
 - **Thursday** — block: 1st, 2nd, Advisory, 3rd, 4th
 - **Friday** — block early release: 6th, 7th, 8th
 
-5th period is SUCCESS there every day, which is why the roster skips it — the
-period list is read off your own schedules, so a school with a plain 1–8 day
-gets all eight. **Start from scratch** in the schedule editor clears the preset
-if none of it applies to you.
+5th period is SUCCESS there every day, which is why the roster skips it.
+
+**Amador Valley HS, Pleasanton** — transcribed from the school's bell schedule
+page:
+
+- **Mon/Tue/Fri** — all six periods, plus optional A (7:26 am) and B (to 4:26 pm)
+- **Wednesday** — block, odd periods: 1st, 3rd, 5th, with Access
+- **Thursday** — block, even periods: 2nd, 4th, 6th, with Access
+- plus minimum day and both finals weeks
+
+Its finals dates are left unassigned on purpose: the school site still lists the
+previous year's. Click a date to pick a finals shape once the real dates are out.
+
+The period list is read off whichever schedules you have, so MHHS keeps its gap
+at 5, AVHS gets a lettered zero period, and a school with a plain 1–8 day gets
+all eight. **Start from scratch** in the schedule editor clears the preset if
+none of it applies to you.
 - **Rally Fridays** (10/23, 1/15, 3/19), **conferences** (10/19–20), **finals**
   (12/15–18, 5/25–28) — all dated and handled automatically
 
