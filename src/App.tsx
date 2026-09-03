@@ -87,14 +87,34 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName?.match(/INPUT|TEXTAREA/)) return
-      if (e.key === 'Escape') { setActiveKey(null); setFocusedDay(null); setPicking(null) }
+      if (e.key === 'Escape') {
+        // Escape used to clear the grid selection and nothing else, so every
+        // sheet had to be dismissed by finding its close button. Back out one
+        // layer per press, innermost first, so a nested flow unwinds the way
+        // you entered it instead of collapsing all at once.
+        if (picking) { setPicking(null); return }
+        if (schedDay) { setSchedDay(null); return }
+        if (draft) { setDraft(null); return }
+        if (rescheduling) { setRescheduling(null); return }
+        if (inspect) { setInspect(null); return }
+        if (syncOpen) { setSyncOpen(false); return }
+        if (onboarding) { setOnboarding(false); return }
+        setActiveKey(null); setFocusedDay(null)
+        return
+      }
+      // Arrow keys page the week, so they must not fire underneath an open
+      // sheet: the calendar would slide around behind the thing you are
+      // reading.
+      if (picking || schedDay || draft || rescheduling || inspect || syncOpen || onboarding) return
       if (e.key === 'ArrowLeft') jump(-1)
       if (e.key === 'ArrowRight') jump(1)
       if (e.key === 't' || e.key === 'T') goToday()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+    // The handler reads sheet state, so it has to be rebound when that changes
+    // — with an empty dep list it closed over the initial nulls forever.
+  }, [picking, schedDay, draft, rescheduling, inspect, syncOpen, onboarding])
 
   const empty = db.series.length === 0 && !db.school.enabled
 
