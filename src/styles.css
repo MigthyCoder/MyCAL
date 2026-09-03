@@ -1,26 +1,138 @@
+/* ==========================================================================
+   Tokens
+   --------------------------------------------------------------------------
+   Two appearances off one set of semantic names. Nothing below this block
+   should ever write a raw surface or text colour: the whole reason light mode
+   is a ~40-line diff rather than a rewrite is that the rest of the sheet asks
+   for --panel, not for #0e1015.
+
+   Dark is the base because that is what this app was designed as, and what it
+   still looks best in. Light is the override.
+   ========================================================================== */
+
 :root {
+  /* --- surfaces, base to elevated. Depth is a step up in lightness, which is
+         how a dark UI says "this is in front" without a drop shadow. --- */
   --bg: #08090c;
   --panel: #0e1015;
   --panel-2: #14161d;
   --raised: #191c25;
+
+  /* --- hairlines --- */
   --line: rgba(255, 255, 255, 0.055);
   --line-mid: rgba(255, 255, 255, 0.10);
   --line-strong: rgba(255, 255, 255, 0.18);
+
+  /* --- text, primary to tertiary --- */
   --text: #eceef4;
   --text-2: #a7abb8;
-  /* Was #6f7480, which lands at 4.06:1 on --panel and 4.26:1 on --bg: under the
-     4.5:1 AA floor. It carries the hour gutter, every sheet's section headings,
-     and all the explanatory copy, none of which is ever large enough for the
-     large-text exemption. #797e8b is the smallest step that clears AA on the
-     lighter of the two surfaces (4.71:1) and still reads as the dim tier. */
+  /* Was #6f7480, under the 4.5:1 AA floor on both surfaces. #797e8b is the
+     smallest step that clears it (4.68:1 on --panel) and still reads as dim. */
   --text-3: #797e8b;
+
+  /* --- semantic accents. One accent for "now"; warn and ok never do its job. --- */
   --now: #ff7a45;
   --warn: #ffb020;
   --ok: #3ecf8e;
+  /* There were four competing reds hardcoded across the sheet. This is the one. */
+  --danger: var(--danger);
+
+  /* --- block colour, per category hue.
+         Each block sets --h and reads these, so one appearance swap re-lights
+         every category at once instead of needing a rule per colour. --- */
+  --blk-bd-s: 40%;  --blk-bd-l: 34%;  --blk-bd-a: 0.75;
+  --blk-bg1-s: 42%; --blk-bg1-l: 21%;
+  --blk-bg2-s: 44%; --blk-bg2-l: 16%;
+  --blk-fg-s: 55%;  --blk-fg-l: 92%;
+  --blk-sub-s: 30%; --blk-sub-l: 76%;
+  --blk-rail-s: 70%; --blk-rail-l: 62%;
+  --blk-dot-s: 62%; --blk-dot-l: 58%;
+  --blk-hover: brightness(1.22);
+  --veil: rgba(4, 5, 8, 0.42);
+  --tint: rgba(255, 255, 255, 0.018);
+  /* A wash is "this row is hovered/selected". It has to be lighter than the
+     surface in dark and darker in light, so it cannot be a fixed white alpha. */
+  --glow-1: rgba(96, 84, 220, 0.13);
+  --glow-2: rgba(255, 122, 69, 0.07);
+  --wash-1: rgba(255, 255, 255, 0.03);
+  --wash-2: rgba(255, 255, 255, 0.06);
+  --wash-3: rgba(255, 255, 255, 0.13);
+  /* Text sitting on a --text-coloured fill. */
+  --on-solid: #0b0c10;
+  --solid-hover: #ffffff;
+  /* Amber and blue used as *text*. The dark values are pastel and vanish on
+     white, so light gets properly darkened versions. */
+  --warn-fg: #ffc964;
+  --info: #9db8ff;
+  --info-bg: rgba(120, 150, 255, 0.18);
+  --mint: #7fd8b0;
+  --pick: #8b7dff;
+
+  /* --- geometry. A scale, so 58 hand-picked paddings stop breeding. --- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 28px;
+  --r-sm: 6px; --r-md: 9px; --r-lg: 12px; --r-pill: 999px;
+
   --px-per-min: 1.15;
   --gutter: 58px;
   --radius: 9px;
   color-scheme: dark;
+}
+
+/* Light. Surfaces invert, but the block palette is genuinely re-tuned rather
+   than flipped: a dark block is a dim fill with bright text, and the honest
+   light equivalent is a pale fill with dark text, not the same numbers
+   subtracted from 100.
+
+   Only ever [data-theme='light'] or [data-theme='dark'] — "System" is resolved
+   to one of those in JS and re-resolved when the OS flips, so this sheet never
+   needs a duplicated prefers-color-scheme copy of the whole palette. */
+:root[data-theme='light'] {
+  --bg: #fbfbfa;
+  --panel: #ffffff;
+  --panel-2: #f4f4f2;
+  --raised: #ebebe8;
+
+  --line: rgba(0, 0, 0, 0.07);
+  --line-mid: rgba(0, 0, 0, 0.12);
+  --line-strong: rgba(0, 0, 0, 0.22);
+
+  --text: #16171a;
+  --text-2: #4a4d55;
+  /* 5.04:1 on white — the same "dim but legible" job, measured. */
+  --text-3: #6b6f78;
+
+  --now: #d1481a;
+  --warn: #a86a00;
+  --ok: #1f7a52;
+  --danger: #b42318;
+
+  --blk-bd-s: 45%;  --blk-bd-l: 68%;  --blk-bd-a: 0.85;
+  --blk-bg1-s: 72%; --blk-bg1-l: 96%;
+  --blk-bg2-s: 66%; --blk-bg2-l: 92%;
+  --blk-fg-s: 45%;  --blk-fg-l: 26%;
+  --blk-sub-s: 28%; --blk-sub-l: 32%;
+  --blk-rail-s: 58%; --blk-rail-l: 52%;
+  --blk-dot-s: 58%; --blk-dot-l: 52%;
+  --blk-hover: brightness(0.97);
+  --veil: rgba(120, 120, 130, 0.10);
+  --tint: rgba(0, 0, 0, 0.014);
+  /* Light gets a far quieter wash of the same two hues. The dark values are
+     tuned to glow out of black; on off-white the same alphas look like a
+     spill. */
+  --glow-1: rgba(96, 84, 220, 0.05);
+  --glow-2: rgba(255, 122, 69, 0.04);
+  --wash-1: rgba(0, 0, 0, 0.035);
+  --wash-2: rgba(0, 0, 0, 0.06);
+  --wash-3: rgba(0, 0, 0, 0.12);
+  --on-solid: #ffffff;
+  --solid-hover: #000000;
+  --warn-fg: #8a5a00;
+  --info: #3552a8;
+  --info-bg: rgba(53, 82, 168, 0.12);
+  --mint: #1f7a52;
+  --pick: #5b4ecc;
+
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -30,8 +142,8 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   background:
-    radial-gradient(1200px 700px at 70% -10%, rgba(96, 84, 220, 0.13), transparent 60%),
-    radial-gradient(900px 600px at 5% 110%, rgba(255, 122, 69, 0.07), transparent 60%),
+    radial-gradient(1200px 700px at 70% -10%, var(--glow-1), transparent 60%),
+    radial-gradient(900px 600px at 5% 110%, var(--glow-2), transparent 60%),
     var(--bg);
   color: var(--text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -92,11 +204,11 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .btn:hover { background: var(--raised); color: var(--text); }
 .btn.ghost { border-color: var(--line-mid); }
-.btn.solid { background: var(--text); color: #0b0c10; font-weight: 600; }
-.btn.solid:hover { background: #fff; color: #0b0c10; }
+.btn.solid { background: var(--text); color: var(--on-solid); font-weight: 600; }
+.btn.solid:hover { background: var(--solid-hover); color: var(--on-solid); }
 .btn.icon { padding: 6px 9px; }
 .btn.sm { padding: 4px 9px; font-size: 11.5px; }
-.btn.danger:hover { background: rgba(255, 80, 80, 0.14); color: #ff8f8f; }
+.btn.danger:hover { background: rgba(255, 80, 80, 0.14); color: var(--danger); }
 
 /* --------------------------------------------------------------- headline */
 
@@ -124,7 +236,7 @@ input, textarea, select { font: inherit; color: inherit; }
   content: '';
   width: 7px; height: 7px;
   border-radius: 2px;
-  background: hsl(var(--h) 62% 58%);
+  background: hsl(var(--h) var(--blk-dot-s) var(--blk-dot-l));
 }
 
 /* ------------------------------------------------------------- open loops */
@@ -147,7 +259,7 @@ input, textarea, select { font: inherit; color: inherit; }
   padding: 3px 9px;
   border-radius: 999px;
   background: rgba(255, 176, 32, 0.13);
-  color: #ffd489;
+  color: var(--warn-fg);
   font-size: 11.5px;
   white-space: nowrap;
 }
@@ -161,7 +273,7 @@ input, textarea, select { font: inherit; color: inherit; }
   margin: 0 20px 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 220px), var(--panel);
+  background: linear-gradient(180deg, var(--tint), transparent 220px), var(--panel);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -184,7 +296,7 @@ input, textarea, select { font: inherit; color: inherit; }
   overflow: hidden;
 }
 .dayhead .cell:last-child { border-right: none; }
-.dayhead .cell:hover { background: rgba(255, 255, 255, 0.025); }
+.dayhead .cell:hover { background: var(--raised); }
 .dayhead .dow {
   font-size: 10.5px;
   letter-spacing: 0.13em;
@@ -202,7 +314,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .dayhead .cell.today .dow { color: var(--now); }
 .dayhead .cell.today .num { color: var(--text); }
 .dayhead .cell.past .num { color: var(--text-3); }
-.dayhead .cell.focused { background: rgba(255, 255, 255, 0.04); }
+.dayhead .cell.focused { background: var(--wash-1); }
 .dayhead .todaypill {
   display: inline-block;
   margin-left: 7px;
@@ -238,9 +350,9 @@ input, textarea, select { font: inherit; color: inherit; }
   border-right: 1px solid var(--line);
 }
 .col:last-child { border-right: none; }
-.col.weekend { background: rgba(255, 255, 255, 0.012); }
+.col.weekend { background: var(--tint); }
 .col.today { background: rgba(255, 122, 69, 0.028); }
-.col.focused { background: rgba(255, 255, 255, 0.03); }
+.col.focused { background: var(--wash-1); }
 
 .hline {
   position: absolute;
@@ -249,13 +361,13 @@ input, textarea, select { font: inherit; color: inherit; }
   border-top: 1px solid var(--line);
   pointer-events: none;
 }
-.hline.half { border-top-style: dotted; border-top-color: rgba(255, 255, 255, 0.032); }
+.hline.half { border-top-style: dotted; border-top-color: var(--wash-1); }
 
 /* the part of the day that's already gone */
 .pastveil {
   position: absolute;
   left: 0; right: 0; top: 0;
-  background: rgba(4, 5, 8, 0.42);
+  background: var(--veil);
   pointer-events: none;
   z-index: 2;
 }
@@ -301,13 +413,13 @@ input, textarea, select { font: inherit; color: inherit; }
   padding: 5px 8px 5px 9px;
   overflow: hidden;
   cursor: pointer;
-  border: 1px solid hsl(var(--h) 40% 34% / 0.75);
+  border: 1px solid hsl(var(--h) var(--blk-bd-s) var(--blk-bd-l) / var(--blk-bd-a));
   background: linear-gradient(
     180deg,
-    hsl(var(--h) 42% 21% / 0.95),
-    hsl(var(--h) 44% 16% / 0.95)
+    hsl(var(--h) var(--blk-bg1-s) var(--blk-bg1-l) / 0.95),
+    hsl(var(--h) var(--blk-bg2-s) var(--blk-bg2-l) / 0.95)
   );
-  color: hsl(var(--h) 55% 92%);
+  color: hsl(var(--h) var(--blk-fg-s) var(--blk-fg-l));
   transition: filter 0.13s, border-color 0.13s, box-shadow 0.13s;
   user-select: none;
   display: flex;
@@ -319,9 +431,9 @@ input, textarea, select { font: inherit; color: inherit; }
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 2.5px;
-  background: hsl(var(--h) 70% 62%);
+  background: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l));
 }
-.block:hover { filter: brightness(1.22); border-color: hsl(var(--h) 55% 50% / 0.9); z-index: 5; }
+.block:hover { filter: var(--blk-hover); border-color: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l) / 0.9); z-index: 5; }
 .block.dragging { z-index: 20; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55); filter: brightness(1.25); }
 .block.short { padding-top: 2px; padding-bottom: 2px; justify-content: center; }
 
@@ -344,7 +456,7 @@ input, textarea, select { font: inherit; color: inherit; }
   min-height: 0;
   font-size: 11px;
   line-height: 1.3;
-  color: hsl(var(--h) 30% 76%);
+  color: hsl(var(--h) var(--blk-sub-s) var(--blk-sub-l));
   overflow: hidden;
   overflow-wrap: anywhere;
   display: -webkit-box;
@@ -353,7 +465,7 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .block .when {
   font-size: 10px;
-  color: hsl(var(--h) 22% 66%);
+  color: hsl(var(--h) var(--blk-sub-s) calc(var(--blk-sub-l) - 10%));
   font-variant-numeric: tabular-nums;
   margin-top: auto;
   white-space: nowrap;
@@ -370,15 +482,15 @@ input, textarea, select { font: inherit; color: inherit; }
   font-weight: 700;
   letter-spacing: 0.09em;
   background: rgba(255, 90, 90, 0.2);
-  color: #ff9d9d;
+  color: var(--danger);
   border: 1px solid rgba(255, 90, 90, 0.3);
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.block .marker.due { background: rgba(255, 176, 32, 0.18); color: #ffc964; border-color: rgba(255, 176, 32, 0.3); }
-.block .marker.presentation { background: rgba(120, 150, 255, 0.18); color: #9db8ff; border-color: rgba(120, 150, 255, 0.32); }
+.block .marker.due { background: rgba(255, 176, 32, 0.18); color: var(--warn-fg); border-color: rgba(255, 176, 32, 0.3); }
+.block .marker.presentation { background: var(--info-bg); color: var(--info); border-color: rgba(120, 150, 255, 0.32); }
 
 /* overlap / side blocks */
 .block .why {
@@ -386,7 +498,7 @@ input, textarea, select { font: inherit; color: inherit; }
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: hsl(var(--h) 45% 72%);
+  color: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l));
   opacity: 0.85;
   white-space: nowrap;
   overflow: hidden;
@@ -397,7 +509,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .block.past { opacity: 0.5; }
 .block.live { border-color: var(--now); box-shadow: 0 0 0 1px rgba(255, 122, 69, 0.35), 0 0 18px rgba(255, 122, 69, 0.14); }
 .block.finished { opacity: 0.62; }
-.block.finished .title { text-decoration: line-through; text-decoration-color: hsl(var(--h) 30% 55%); }
+.block.finished .title { text-decoration: line-through; text-decoration-color: hsl(var(--h) var(--blk-sub-s) var(--blk-sub-l) / 0.8); }
 .block.finished::after {
   content: '✓';
   position: absolute;
@@ -410,8 +522,8 @@ input, textarea, select { font: inherit; color: inherit; }
   opacity: 0.4;
   background: repeating-linear-gradient(
     -45deg,
-    hsl(var(--h) 20% 16%), hsl(var(--h) 20% 16%) 5px,
-    hsl(var(--h) 20% 12%) 5px, hsl(var(--h) 20% 12%) 10px
+    hsl(var(--h) 16% var(--blk-bg2-l)), hsl(var(--h) 16% var(--blk-bg2-l)) 5px,
+    hsl(var(--h) 16% calc(var(--blk-bg2-l) - 4%)) 5px, hsl(var(--h) 16% calc(var(--blk-bg2-l) - 4%)) 10px
   );
 }
 .block.dropped .title { text-decoration: line-through; }
@@ -419,12 +531,12 @@ input, textarea, select { font: inherit; color: inherit; }
   opacity: 0.55;
   background: transparent;
   border-style: dashed;
-  border-color: hsl(var(--h) 30% 40% / 0.7);
+  border-color: hsl(var(--h) var(--blk-bd-s) var(--blk-bd-l) / 0.7);
 }
 .block.rescheduled::before { opacity: 0.35; }
 .block.needs {
   border-color: rgba(255, 176, 32, 0.85);
-  background: linear-gradient(180deg, rgba(255, 176, 32, 0.14), hsl(var(--h) 40% 15% / 0.95));
+  background: linear-gradient(180deg, rgba(255, 176, 32, 0.14), hsl(var(--h) var(--blk-bg2-s) var(--blk-bg2-l) / 0.95));
   box-shadow: 0 0 0 1px rgba(255, 176, 32, 0.22);
   animation: pulse 2.6s ease-in-out infinite;
 }
@@ -457,7 +569,7 @@ input, textarea, select { font: inherit; color: inherit; }
   z-index: 8;
   border-radius: var(--radius);
   border: 1.5px dashed var(--line-strong);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--wash-2);
   pointer-events: none;
   display: flex;
   align-items: center;
@@ -538,7 +650,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   width: 30px; height: 30px;
   border-radius: 8px;
   border: 1.5px solid transparent;
-  background: hsl(var(--h) 45% 26%);
+  background: hsl(var(--h) var(--blk-bg1-s) var(--blk-bg1-l));
   position: relative;
   transition: transform 0.12s;
 }
@@ -547,9 +659,9 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   position: absolute;
   inset: 5px;
   border-radius: 4px;
-  background: hsl(var(--h) 68% 60%);
+  background: hsl(var(--h) var(--blk-dot-s) var(--blk-dot-l));
 }
-.swatch[aria-pressed='true'] { border-color: hsl(var(--h) 70% 65%); transform: scale(1.06); }
+.swatch[aria-pressed='true'] { border-color: hsl(var(--h) var(--blk-dot-s) var(--blk-dot-l)); transform: scale(1.06); }
 
 .dowpick { display: flex; gap: 4px; }
 .dowpick button {
@@ -580,7 +692,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 }
 .outcomerow button.fin:hover { background: rgba(62, 207, 142, 0.13); border-color: rgba(62, 207, 142, 0.5); color: var(--ok); }
 .outcomerow button.res:hover { background: rgba(255, 176, 32, 0.13); border-color: rgba(255, 176, 32, 0.5); color: var(--warn); }
-.outcomerow button.drop:hover { background: rgba(255, 90, 90, 0.11); border-color: rgba(255, 90, 90, 0.45); color: #ff8f8f; }
+.outcomerow button.drop:hover { background: rgba(255, 90, 90, 0.11); border-color: rgba(255, 90, 90, 0.45); color: var(--danger); }
 
 .note {
   font-size: 12.5px;
@@ -600,7 +712,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .onb .lede { font-size: 13.5px; color: var(--text-2); line-height: 1.6; margin: 0 0 18px; }
 .onb .warn {
   font-size: 12.5px;
-  color: #ffc964;
+  color: var(--warn-fg);
   background: rgba(255, 176, 32, 0.09);
   border: 1px solid rgba(255, 176, 32, 0.24);
   border-radius: 8px;
@@ -664,8 +776,8 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .footer span { display: inline-flex; align-items: center; gap: 6px; }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.09); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.16); background-clip: padding-box; }
+::-webkit-scrollbar-thumb { background: var(--wash-3); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--line-strong); background-clip: padding-box; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 .minidow .dowpick { gap: 3px; }
@@ -673,10 +785,10 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .prow.wide { grid-template-columns: 84px 74px 74px 1fr 158px 26px; }
 .onb .addrow { margin-top: 10px; }
 .rowx { color: var(--text-3); font-size: 15px; line-height: 1; padding: 4px; border-radius: 5px; }
-.rowx:hover { background: rgba(255,80,80,.15); color: #ff8f8f; }
+.rowx:hover { background: rgba(255,80,80,.15); color: var(--danger); }
 
 .check { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-2); cursor: pointer; }
-.check input { accent-color: #8b7dff; width: 15px; height: 15px; }
+.check input { accent-color: var(--pick); width: 15px; height: 15px; }
 
 .preview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .pcol { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px; }
@@ -692,9 +804,9 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .pslot .pt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pslot .pw { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pslot.unset .pt { color: var(--text-3); font-style: italic; }
-.pslot.success .pt, .pslot.advisory .pt { color: #ffc964; }
+.pslot.success .pt, .pslot.advisory .pt { color: var(--warn-fg); }
 .pslot.lunch .pt, .pslot.breakfast .pt { color: var(--text-3); }
-.pslot.special .pt { color: #7fd8b0; }
+.pslot.special .pt { color: var(--mint); }
 
 .dayhead .dow { display: flex; align-items: center; justify-content: space-between; }
 .daycog {
@@ -709,12 +821,12 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .schedchip {
   display: inline-block; margin-top: 3px;
   font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
-  color: #9db8ff; background: rgba(120, 150, 255, 0.13);
+  color: var(--info); background: var(--info-bg);
   border: 1px solid rgba(120, 150, 255, 0.2);
   padding: 1px 5px; border-radius: 4px;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.schedchip.manual { color: #ffc964; background: rgba(255, 176, 32, 0.12); border-color: rgba(255, 176, 32, 0.24); }
+.schedchip.manual { color: var(--warn-fg); background: rgba(255, 176, 32, 0.12); border-color: rgba(255, 176, 32, 0.24); }
 
 .schedlist { display: flex; flex-direction: column; gap: 5px; }
 .schedlist button {
@@ -737,7 +849,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   max-width: 62%;
   font-weight: 400;
   font-size: 10.5px;
-  color: hsl(var(--h) 26% 70%);
+  color: hsl(var(--h) var(--blk-sub-s) var(--blk-sub-l));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -749,7 +861,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   font-weight: 700;
 }
 
-.block .inlinesub.moved { flex: none; margin-left: auto; color: hsl(var(--h) 20% 62%); font-size: 10px; }
+.block .inlinesub.moved { flex: none; margin-left: auto; color: hsl(var(--h) var(--blk-sub-s) calc(var(--blk-sub-l) - 14%)); font-size: 10px; }
 
 .range.jump { position: relative; cursor: pointer; border-radius: 7px; padding: 5px 8px; transition: background .13s, color .13s; }
 .range.jump:hover { background: var(--raised); color: var(--text); }
@@ -764,8 +876,8 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   transition: background .13s, color .13s, border-color .13s;
 }
 .flexpick:hover { color: var(--text-2); border-color: var(--line-mid); }
-.flexpick.on { background: rgba(255, 176, 32, 0.14); border-color: rgba(255, 176, 32, 0.4); color: #ffc964; }
-.pslot.flex .pt { color: #ffc964; }
+.flexpick.on { background: rgba(255, 176, 32, 0.14); border-color: rgba(255, 176, 32, 0.4); color: var(--warn-fg); }
+.pslot.flex .pt { color: var(--warn-fg); }
 
 /* A resolved Flex isn't a crossed-off task — it's a period you reported on. */
 .block.finished.sch .title { text-decoration: none; }
@@ -780,8 +892,8 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   z-index: 5;
   border-radius: 0 var(--radius) var(--radius) 0;
   border: none;
-  border-left: 1px dashed rgba(255, 255, 255, 0.34);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.13));
+  border-left: 1px dashed var(--line-strong);
+  background: linear-gradient(90deg, var(--wash-1), var(--wash-3));
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   display: flex;
@@ -839,20 +951,20 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
      enough that you can tell it's resting on something. */
   background: linear-gradient(
     180deg,
-    hsl(var(--h) 50% 27% / 0.82),
-    hsl(var(--h) 52% 20% / 0.86)
+    hsl(var(--h) var(--blk-bg1-s) calc(var(--blk-bg1-l) + 6%) / 0.82),
+    hsl(var(--h) var(--blk-bg2-s) calc(var(--blk-bg2-l) + 4%) / 0.86)
   );
   backdrop-filter: blur(12px) saturate(1.35);
   -webkit-backdrop-filter: blur(12px) saturate(1.35);
-  border-color: hsl(var(--h) 58% 64% / 0.55);
+  border-color: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l) / 0.55);
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.11),
     inset 1px 0 0 rgba(255, 255, 255, 0.06);
 }
-.block.rider::before { width: 2px; background: hsl(var(--h) 78% 68%); }
+.block.rider::before { width: 2px; background: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l)); }
 .block.rider:hover { filter: brightness(1.12); }
-.block.rider .why { color: hsl(var(--h) 60% 80%); opacity: 1; }
+.block.rider .why { color: hsl(var(--h) var(--blk-fg-s) var(--blk-fg-l)); opacity: 1; }
 
 /* ================================================================== mobile */
 
@@ -947,14 +1059,14 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
 }
 .syncbtn.on i { background: var(--ok); box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.14); }
-.syncbtn.bad i { background: #ff8f8f; box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.14); }
+.syncbtn.bad i { background: var(--danger); box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.14); }
 
 /* A block laid over one it only partly overlaps. The shadow falls left, onto
    what it's covering, so the two read as stacked cards rather than as one block
    that got mysteriously narrower. */
 .block.stacked {
   box-shadow: -7px 0 18px rgba(0, 0, 0, 0.5);
-  border-left-color: hsl(var(--h) 60% 62% / 0.8);
+  border-left-color: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l) / 0.8);
 }
 .block.stacked::before { width: 3px; }
 
@@ -1042,7 +1154,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .linkfield { font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 /* The second Flex line — what actually happened — reads brighter than the plan. */
-.block .sub.did { color: hsl(var(--h) 42% 86%); }
+.block .sub.did { color: hsl(var(--h) var(--blk-fg-s) calc(var(--blk-fg-l) - 6%)); }
 
 /* ------------------------------------------------------------- reminder row */
 
@@ -1105,7 +1217,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   transition: opacity .13s, color .13s;
 }
 .rem:hover em { opacity: 1; }
-.rem em:hover { color: #ff8f8f; }
+.rem em:hover { color: var(--danger); }
 .rem.done { opacity: 0.45; }
 .rem.done i { background: var(--ok); border-color: var(--ok); }
 .rem.done span { text-decoration: line-through; }
@@ -1147,7 +1259,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .block.lifted {
   transform: scale(1.035);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65);
-  border-color: hsl(var(--h) 70% 68%);
+  border-color: hsl(var(--h) var(--blk-dot-s) var(--blk-dot-l));
   filter: brightness(1.2);
   transition: transform .14s cubic-bezier(.22,1,.36,1), box-shadow .14s;
   pointer-events: none;
@@ -1168,9 +1280,9 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   align-items: center;
   gap: 7px;
   padding: 0 9px 0 7px;
-  background: linear-gradient(90deg, hsl(var(--h) 45% 20% / 0.9), hsl(var(--h) 45% 16% / 0.55));
+  background: linear-gradient(90deg, hsl(var(--h) var(--blk-bg1-s) var(--blk-bg1-l) / 0.9), hsl(var(--h) var(--blk-bg2-s) var(--blk-bg2-l) / 0.55));
   border: none;
-  border-top: 1.5px dashed hsl(var(--h) 55% 58% / 0.85);
+  border-top: 1.5px dashed hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l) / 0.85);
   border-radius: 0 5px 5px 0;
   box-shadow: none;
 }
@@ -1180,12 +1292,12 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   flex: none;
   width: 13px; height: 13px;
   border-radius: 4px;
-  border: 1.5px solid hsl(var(--h) 60% 62%);
+  border: 1.5px solid hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l));
   background: transparent;
   cursor: pointer;
   transition: background .12s, border-color .12s, transform .12s;
 }
-.pindot:hover { background: hsl(var(--h) 60% 62% / 0.35); transform: scale(1.12); }
+.pindot:hover { background: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l) / 0.35); transform: scale(1.12); }
 .pintext {
   flex: 1;
   min-width: 0;
@@ -1199,7 +1311,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .pinwhen {
   flex: none;
   font-size: 10px;
-  color: hsl(var(--h) 24% 66%);
+  color: hsl(var(--h) var(--blk-sub-s) calc(var(--blk-sub-l) - 10%));
   font-variant-numeric: tabular-nums;
 }
 
@@ -1242,7 +1354,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 
 /* A labelled note reads hotter than a plain one, so a test never looks like a
    room number even when they're stacked in the same block. */
-.block .sub.flag { color: hsl(var(--h) 30% 84%); }
+.block .sub.flag { color: hsl(var(--h) var(--blk-sub-s) calc(var(--blk-sub-l) + 8%)); }
 .block .sub.flag::before {
   content: '';
   display: inline-block;
@@ -1252,9 +1364,9 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   vertical-align: 1px;
   background: currentColor;
 }
-.block .sub.flag.test, .block .sub.flag.quiz { color: #ff9d9d; }
-.block .sub.flag.due { color: #ffc964; }
-.block .sub.flag.presentation { color: #9db8ff; }
+.block .sub.flag.test, .block .sub.flag.quiz { color: var(--danger); }
+.block .sub.flag.due { color: var(--warn-fg); }
+.block .sub.flag.presentation { color: var(--info); }
 
 .notelist { display: flex; flex-direction: column; gap: 6px; }
 .noterow { display: grid; grid-template-columns: 104px 1fr 26px; gap: 6px; align-items: center; }
@@ -1287,8 +1399,8 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 .slot span { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .slot:hover { background: var(--raised); border-color: var(--line-mid); }
 .slot.on { border-color: var(--line-strong); background: var(--raised); }
-.slot.flex b { color: #ffc964; }
-.slot.success b { color: #ffc964; }
+.slot.flex b { color: var(--warn-fg); }
+.slot.success b { color: var(--warn-fg); }
 .slot.on.flex, .slot.on.success { border-color: rgba(255, 176, 32, 0.55); }
 
 /* Mode bar while you're choosing a time straight off the grid. */
@@ -1323,7 +1435,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
 }
 .rowx:disabled { opacity: 0.2; cursor: default; }
 .rowx:disabled:hover { background: none; color: var(--text-3); }
-.block .sub.plan { color: hsl(var(--h) 28% 78%); }
+.block .sub.plan { color: hsl(var(--h) var(--blk-sub-s) var(--blk-sub-l)); }
 
 .planpreview { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
 .planpreview li { font-size: 12.5px; color: var(--text-2); }
@@ -1337,10 +1449,10 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 600;
-  color: hsl(var(--h) 26% 62%);
+  color: hsl(var(--h) var(--blk-sub-s) calc(var(--blk-sub-l) - 14%));
   margin-top: 1px;
 }
-.block .sub.planitem { padding-left: 8px; color: hsl(var(--h) 28% 80%); }
+.block .sub.planitem { padding-left: 8px; color: hsl(var(--h) var(--blk-sub-s) calc(var(--blk-sub-l) + 4%)); }
 
 /* ============================================ respect a reduced-motion choice */
 
@@ -1450,7 +1562,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   border-radius: 10px;
   background: var(--panel);
 }
-.taskdock.open { background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 120px), var(--panel); }
+.taskdock.open { background: linear-gradient(180deg, var(--tint), transparent 120px), var(--panel); }
 
 .taskbar {
   display: flex;
@@ -1513,7 +1625,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   padding: 3px 2px;
   border-radius: 7px;
 }
-.taskrow:hover { background: rgba(255, 255, 255, 0.022); }
+.taskrow:hover { background: var(--wash-1); }
 .taskcheck {
   flex: none;
   display: inline-flex;
@@ -1621,7 +1733,7 @@ button.tasktext:hover { background: var(--raised); }
   width: 11px;
   height: 11px;
   border-radius: 3px;
-  background: hsl(var(--h) 62% 58%);
+  background: hsl(var(--h) var(--blk-dot-s) var(--blk-dot-l));
   transition: transform 0.13s;
 }
 .colordot:hover::before { transform: scale(1.18); }
@@ -1647,3 +1759,108 @@ button.tasktext:hover { background: var(--raised); }
   .colordot::before { width: 14px; height: 14px; }
   .colorpop { left: 46px; }
 }
+
+/* ---------------------------------------------------------- appearance */
+
+/* Same segmented shape as .zoom, because it does the same kind of job: a
+   display setting, sitting with the other display setting. */
+.themetoggle {
+  display: flex;
+  gap: 2px;
+  margin-left: var(--sp-2);
+  border: 1px solid var(--line-mid);
+  border-radius: 7px;
+  overflow: hidden;
+  flex: none;
+}
+.themetoggle button {
+  padding: 5px 8px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-3);
+  transition: background 0.2s, color 0.2s;
+}
+.themetoggle button:hover { background: var(--raised); color: var(--text-2); }
+.themetoggle button.on { background: var(--raised); color: var(--text); }
+
+@media (max-width: 760px) {
+  .themetoggle button { min-height: 44px; min-width: 40px; }
+}
+
+/* ==========================================================================
+   Refinement pass
+   --------------------------------------------------------------------------
+   Minimalism here means fewer competing signals, not fewer pixels. Three
+   moves: settle the corner radii onto the scale, quiet the grid chrome so the
+   blocks are the only thing with weight, and give the surfaces one consistent
+   edge treatment in both appearances.
+   ========================================================================== */
+
+/* Radii were spread across 13 values while --radius sat almost unused. These
+   are the four that actually appear, mapped onto the scale. */
+.gridwrap { border-radius: var(--r-lg); }
+.taskdock,
+.loops { border-radius: var(--r-lg); }
+.block { border-radius: var(--r-md); }
+.btn { border-radius: var(--r-sm); }
+.chipday { border-radius: var(--r-md); }
+
+/* The grid drew three weights of line — solid, dotted half-hour, and column
+   rules — all competing with the blocks. Half-hour lines step back to a hint
+   you can still follow when dragging, and the hour lines carry the structure. */
+.hline { border-top-color: var(--line); }
+.hline.half { border-top-color: transparent; border-top-style: solid; }
+.scroll:hover .hline.half { border-top-color: var(--line); }
+
+/* One elevation story: panels sit on the page with a hairline, and nothing
+   else needs a shadow to say it is a surface. */
+.gridwrap,
+.taskdock {
+  border-color: var(--line-mid);
+}
+
+/* Day headers carry the week's structure, so the date is the loud part and the
+   weekday is the quiet one — rather than both shouting at the same weight. */
+.dayhead .dow { color: var(--text-3); font-weight: 600; }
+.dayhead .num { color: var(--text); font-weight: 600; }
+.dayhead .cell.past .num { color: var(--text-3); }
+.dayhead .cell.past .dow { opacity: 0.7; }
+
+/* Today is marked by the accent on the weekday and the pill, which is enough.
+   The column tint on top of that was a third signal for one fact. */
+.col.today { background: color-mix(in srgb, var(--now) 4%, transparent); }
+
+/* Transitions land in the 200-250ms band the minimal style calls for: present
+   enough to feel considered, short enough never to be in the way. */
+.btn,
+.chipday,
+.dayhead .cell,
+.themetoggle button {
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* The appearance switch is chrome, not content: it should read as one control
+   with a selected segment, not three buttons in a row. */
+.themetoggle button.on {
+  background: var(--wash-2);
+  color: var(--text);
+}
+.themetoggle button:focus-visible { z-index: 1; }
+
+/* Phone: one cycling button instead of three segments, so the topbar keeps
+   fitting on a single row. */
+.themecycle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line-mid);
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.themecycle:hover { background: var(--raised); color: var(--text); }

@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
 import { initSync } from './lib/sync'
+import { initTheme } from './lib/theme'
+
+// The inline script in index.html already set the attribute; this takes over
+// so a mid-session OS appearance change is followed too.
+initTheme()
 
 void initSync()
 

@@ -7,6 +7,7 @@ import { Onboarding } from './components/Onboarding'
 import { DayScheduleSheet } from './components/DayScheduleSheet'
 import { WeekStrip } from './components/WeekStrip'
 import { TaskDock } from './components/TaskDock'
+import { ThemeToggle } from './components/ThemeToggle'
 import { SyncButton, SyncSheet } from './components/SyncSheet'
 import { MOBILE, useMedia } from './lib/useMedia'
 import { buildOccurrences, openLoops, type Occurrence } from './lib/occurrences'
@@ -174,6 +175,7 @@ export default function App() {
               ＋
             </button>
           </div>
+          <ThemeToggle />
           <SyncButton onOpen={() => setSyncOpen(true)} />
           <button className="btn ghost" style={{ marginLeft: 10 }} onClick={() => setOnboarding(true)}>
             {db.school.enabled ? (isMobile ? 'Classes' : 'My classes') : 'Set up school'}

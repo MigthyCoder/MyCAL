@@ -12,6 +12,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // Resolve the appearance before first paint. Doing this in React instead
+      // means one frame of the wrong theme on every cold load, which on a dark
+      // default is a white flash straight in the face at 7am.
+      (function () {
+        try {
+          var p = localStorage.getItem('mycal.theme') || 'system'
+          var light =
+            p === 'light' ||
+            (p === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches)
+          document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark')
+          var m = document.querySelector('meta[name="theme-color"]')
+          if (m) m.setAttribute('content', light ? '#fbfbfa' : '#08090c')
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
