@@ -1412,7 +1412,13 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
      real rather than faking the hit area. */
   .rowx { min-width: 44px; min-height: 44px; padding: 4px 8px; }
   .noterow { grid-template-columns: 112px 1fr 44px; }
-  .noterow.plan { grid-template-columns: 22px 1fr 44px 44px 44px; gap: 4px; }
+  .noterow.plan { grid-template-columns: 22px 1fr 44px 44px 44px; gap: 8px; }
+
+  /* Adjacent targets need 8px between them, or a 44px box just means you miss
+     by less. .dowpick and .seg are rows of buttons sitting 3-4px apart. */
+  .dowpick { gap: 8px; }
+  .seg { gap: 8px; }
+  .nav { gap: 8px; }
 
   /* The dot is meant to read small — it is a status light, not a button face.
      Keep the visual at 24px and push the touch area out to 44px underneath it,
