@@ -106,11 +106,21 @@
   --ok: #1f7a52;
   --danger: #b42318;
 
-  --blk-bd-s: 45%;  --blk-bd-l: 68%;  --blk-bd-a: 0.85;
-  --blk-bg1-s: 72%; --blk-bg1-l: 96%;
-  --blk-bg2-s: 66%; --blk-bg2-l: 92%;
+  /* Sitting at 92-96% against a white panel, blocks read as tinted whitespace
+     rather than as objects on a surface. Dropping the fill ~5 points and
+     darkening the border to a real edge is what makes them look placed. Kept
+     the saturation high so the category is still obvious at a glance, and the
+     border does the separating rather than a shadow — this is a flat, gridded
+     UI and one drop shadow would make everything else look unfinished. */
+  /* calc resolves where it is used, so each block subtracts its own --lift and
+     lands near 5:1 whatever its hue. Dark keeps a flat value: there the light
+     hues are the more visible ones, so no correction is needed. */
+  --blk-bd-s: 52%;  --blk-bd-l: calc(56% - var(--lift, 0%));  --blk-bd-a: 1;
+  --blk-bg1-s: 74%; --blk-bg1-l: 91%;
+  --blk-bg2-s: 70%; --blk-bg2-l: 86%;
   --blk-fg-s: 45%;  --blk-fg-l: 26%;
-  --blk-sub-s: 28%; --blk-sub-l: 32%;
+  /* Deepening the fill cost the subtitle contrast, so it comes down with it. */
+  --blk-sub-s: 30%; --blk-sub-l: 26%;
   --blk-rail-s: 58%; --blk-rail-l: 52%;
   --blk-dot-s: 58%; --blk-dot-l: 52%;
   --blk-hover: brightness(0.97);

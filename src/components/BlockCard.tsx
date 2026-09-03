@@ -59,7 +59,7 @@ export function BlockCard({
   onPressCancel,
 }: Props) {
   const { occ, left, width } = placed
-  const hue = CATEGORY_META[occ.series.category].hue
+  const { hue, lift } = CATEGORY_META[occ.series.category]
   const duration = occ.endMin - occ.startMin
   const naturalH = duration * pxPerMin
   const isFlex = occ.series.schoolRole === 'flex'
@@ -208,6 +208,7 @@ export function BlockCard({
       style={{
         // @ts-expect-error custom property
         '--h': hue,
+        '--lift': `${lift}%`,
         top,
         height: grow ? 'auto' : height,
         minHeight: height,
