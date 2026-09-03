@@ -1,3 +1,5 @@
+import type { BellSchedule, WeekdayMap } from './bell'
+
 /** Everything in MyCAL is either something that HAPPENED TO you or something you
  *  INTENDED TO DO. That distinction is the whole product, so it's the first type. */
 export type Kind =
@@ -104,7 +106,8 @@ export interface Reminder {
   createdAt: number
 }
 
-/** Your roster, keyed by period number. Period 5 is SUCCESS, so it's never here.
+/** Your roster, keyed by period number. Only periods your schedules actually
+ *  teach appear — a period that is study hall everywhere never shows up.
  *  `flex` marks a period that's discretionary time rather than a class — those
  *  are the only blocks that ask what you actually used them for. */
 export type ClassRoster = Record<string, { title: string; room?: string; flex?: boolean }>
@@ -120,6 +123,16 @@ export interface SchoolConfig {
   successDefault: string
   /** Your own per-date schedule swaps — holidays, breaks, undated testing days. */
   dayOverrides: Record<string, string>
+  /** Your school's day shapes, keyed by id. Editable: this is the whole point
+   *  of the calendar not being welded to one school's bell sheet. */
+  schedules: Record<string, BellSchedule>
+  /** Which shape each weekday normally runs, keyed by `Date.getDay()`. */
+  weekdays: WeekdayMap
+  /** Dated exceptions off the school calendar — rallies, finals, conferences.
+   *  Distinct from `dayOverrides`, which is what *you* changed by hand. */
+  specialDates: Record<string, string>
+  /** Which preset this started from, if any. Only used to label the UI. */
+  presetId?: string
 }
 
 export interface DB {

@@ -1,19 +1,27 @@
 /**
- * MHHS 2026–27 bell schedules, transcribed from the official sheet.
+ * Bell schedules: the types, the resolution rules, and one built-in preset.
  *
- * The school runs three different day shapes in a normal week, which is why a
- * "one column of periods, repeated seven times" calendar can never be right:
+ * Nothing in here is the source of truth at runtime. A user's own schedules,
+ * weekday pattern, and dated exceptions live in `db.school` so they can be
+ * edited, added to, and thrown away. The MHHS tables below are seed data —
+ * the school this was first built for, kept as a preset and as a worked
+ * example of a genuinely awkward timetable.
+ *
+ * MHHS is worth keeping precisely because it is awkward: three different day
+ * shapes in a normal week, which is why a "one column of periods, repeated
+ * seven times" calendar can never be right.
  *   Mon/Tue/Wed → 8 short periods
  *   Thursday    → block: 1st, 2nd, Advisory, 3rd, 4th
  *   Friday      → block: 6th, 7th, 8th, early release
- * Period 5 is SUCCESS every single day, so the class roster only has 7 slots.
+ * Period 5 is SUCCESS there every day, which is why the resolver must never
+ * assume periods run 1..N with no gaps. Yours might skip a different one, or
+ * none at all.
  */
 
 export type SlotRole = 'class' | 'success' | 'advisory' | 'lunch' | 'breakfast' | 'special'
 
-/** Period 5 is SUCCESS, never a class. */
-export type PeriodNo = 1 | 2 | 3 | 4 | 6 | 7 | 8
-export const PERIOD_NOS: PeriodNo[] = [1, 2, 3, 4, 6, 7, 8]
+/** Any period number a school cares to use. MHHS skips 5; yours may not. */
+export type PeriodNo = number
 
 export interface Slot {
   /** Stable key used for per-day notes. Classes key off the period so a note on
@@ -58,7 +66,7 @@ const special = (key: string, label: string, sh: number, sm: number, eh: number,
   key, label, startMin: t(sh, sm), endMin: t(eh, em), role: 'special',
 })
 
-export const SCHEDULES: Record<string, BellSchedule> = {
+export const MHHS_SCHEDULES: Record<string, BellSchedule> = {
   regular: {
     id: 'regular',
     label: 'Regular (Mon–Wed)',
@@ -194,10 +202,8 @@ export const SCHEDULES: Record<string, BellSchedule> = {
   },
 }
 
-export const SCHEDULE_IDS = Object.keys(SCHEDULES)
-
 /** Dates that don't follow the normal weekday pattern, straight off the sheet. */
-export const SPECIAL_DATES: Record<string, string> = {
+export const MHHS_SPECIAL_DATES: Record<string, string> = {
   '2026-10-19': 'confMon',
   '2026-10-20': 'confTue',
   '2026-10-23': 'friRally',
@@ -215,28 +221,78 @@ export const SPECIAL_DATES: Record<string, string> = {
 
 export const NO_SCHOOL = 'none'
 
-/**
- * Which bell schedule a given date runs. `manual` is your own override for
- * holidays, breaks, and the testing days the district hasn't dated yet.
- */
-export function scheduleIdFor(
-  date: string,
-  dow: number,
-  manual: Record<string, string> = {},
-): string | null {
-  if (manual[date]) return manual[date] === NO_SCHOOL ? null : manual[date]
-  if (SPECIAL_DATES[date]) return SPECIAL_DATES[date]
-  if (dow === 0 || dow === 6) return null
-  if (dow === 4) return 'thuBlock'
-  if (dow === 5) return 'friBlock'
-  return 'regular'
+/** Which schedule each weekday normally runs, keyed by `Date.getDay()`.
+ *  A missing key, or null, means no school that day. */
+export type WeekdayMap = Record<string, string | null>
+
+/** MHHS's normal week. Weekends are absent, which is how "no school" is said. */
+export const MHHS_WEEKDAYS: WeekdayMap = {
+  '1': 'regular',
+  '2': 'regular',
+  '3': 'regular',
+  '4': 'thuBlock',
+  '5': 'friBlock',
 }
 
-export function scheduleFor(
-  date: string,
-  dow: number,
-  manual: Record<string, string> = {},
-): BellSchedule | null {
-  const id = scheduleIdFor(date, dow, manual)
-  return id ? (SCHEDULES[id] ?? null) : null
+/** Everything the resolver needs. `db.school` satisfies this, which is the
+ *  point: the rules read your data, not a table compiled into the app. */
+export interface ScheduleSource {
+  schedules: Record<string, BellSchedule>
+  weekdays: WeekdayMap
+  specialDates: Record<string, string>
+  dayOverrides: Record<string, string>
+}
+
+/**
+ * Which bell schedule a given date runs, most specific answer first:
+ * your own per-date override, then a dated exception from the school
+ * calendar, then the normal weekday pattern.
+ */
+export function scheduleIdFor(date: string, dow: number, src: ScheduleSource): string | null {
+  const manual = src.dayOverrides[date]
+  if (manual) return manual === NO_SCHOOL ? null : manual
+  if (src.specialDates[date]) return src.specialDates[date]
+  return src.weekdays[String(dow)] ?? null
+}
+
+export function scheduleFor(date: string, dow: number, src: ScheduleSource): BellSchedule | null {
+  const id = scheduleIdFor(date, dow, src)
+  return id ? (src.schedules[id] ?? null) : null
+}
+
+/**
+ * The period numbers this school actually teaches, read off the schedules
+ * rather than assumed. MHHS returns [1,2,3,4,6,7,8] because 5 is SUCCESS
+ * everywhere; a school with a plain eight-period day returns 1..8.
+ */
+export function periodsIn(schedules: Record<string, BellSchedule>): number[] {
+  const seen = new Set<number>()
+  for (const s of Object.values(schedules)) {
+    for (const slot of s.slots) if (slot.period != null) seen.add(slot.period)
+  }
+  return [...seen].sort((a, b) => a - b)
+}
+
+/** Was a lookup table with seven MHHS-shaped holes in it. Any period number a
+ *  school uses has to render, so it is computed. */
+export const ordinal = (n: number) => {
+  const suffix = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return `${n}${suffix[(v - 20) % 10] || suffix[v] || suffix[0]}`
+}
+
+/** A blank day shape to start editing, so "add a schedule" is one click and
+ *  then typing, not a form you have to complete before anything exists. */
+export function blankSchedule(id: string, label: string): BellSchedule {
+  return { id, label, slots: [] }
+}
+
+/** Slot keys have to be unique inside a schedule: notes hang off them. */
+export function nextSlotKey(sched: BellSchedule, role: SlotRole, period?: number): string {
+  if (role === 'class' && period != null) return `p${period}`
+  const base = role === 'special' ? 'slot' : role
+  if (!sched.slots.some((s) => s.key === base)) return base
+  let n = 2
+  while (sched.slots.some((s) => s.key === `${base}${n}`)) n++
+  return `${base}${n}`
 }

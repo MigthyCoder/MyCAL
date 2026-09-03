@@ -137,7 +137,7 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
 
     // --- school, straight from the bell schedule for that specific date ---
     if (school.enabled && date >= school.startDate && date <= school.endDate) {
-      const sched = scheduleFor(date, dow, school.dayOverrides)
+      const sched = scheduleFor(date, dow, school)
       if (sched) {
         for (const slot of sched.slots) {
           if (slot.role === 'breakfast' && !school.showBreakfast) continue

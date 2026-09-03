@@ -1,21 +1,22 @@
-import { NO_SCHOOL, SCHEDULES, SPECIAL_DATES, scheduleIdFor } from '../lib/bell'
+import { NO_SCHOOL, scheduleIdFor } from '../lib/bell'
+import type { SchoolConfig } from '../lib/types'
 import { setDaySchedule } from '../lib/store'
 import { fmtTimeShort, parseKey } from '../lib/time'
 import { Sheet } from './ui'
 
 export function DayScheduleSheet({
   date,
-  overrides,
+  school,
   onClose,
 }: {
   date: string
-  overrides: Record<string, string>
+  school: SchoolConfig
   onClose: () => void
 }) {
   const d = parseKey(date)
-  const current = scheduleIdFor(date, d.getDay(), overrides)
-  const manual = overrides[date]
-  const fromSheet = SPECIAL_DATES[date]
+  const current = scheduleIdFor(date, d.getDay(), school)
+  const manual = school.dayOverrides[date]
+  const fromSheet = school.specialDates[date]
 
   const pick = (id: string | null) => { setDaySchedule(date, id); onClose() }
 
@@ -35,14 +36,18 @@ export function DayScheduleSheet({
           <span className="sl">No school</span>
           <span className="sr">holiday / break</span>
         </button>
-        {Object.values(SCHEDULES).map((s) => {
+        {Object.values(school.schedules).map((s) => {
           const span = s.slots.filter((x) => x.role !== 'breakfast')
           const first = span[0]
           const last = span[span.length - 1]
+          // A shape you have created but not filled in yet has no slots, so it
+          // has no time range to print. It still has to be pickable.
           return (
             <button key={s.id} aria-pressed={current === s.id} onClick={() => pick(s.id)}>
               <span className="sl">{s.label}</span>
-              <span className="sr">{fmtTimeShort(first.startMin)}–{fmtTimeShort(last.endMin)}</span>
+              <span className="sr">
+                {first ? `${fmtTimeShort(first.startMin)}–${fmtTimeShort(last.endMin)}` : 'empty'}
+              </span>
             </button>
           )
         })}

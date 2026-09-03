@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { DayNote, DB, MarkerType, Outcome, Override, SchoolConfig, Series } from './types'
 import type { Occurrence } from './occurrences'
+import { MHHS_SCHEDULES, MHHS_SPECIAL_DATES, MHHS_WEEKDAYS, type BellSchedule } from './bell'
 
 const KEY = 'mycal.db.v1'
 
@@ -23,6 +24,16 @@ export const DEFAULT_SCHOOL: SchoolConfig = {
   showLunch: true,
   successDefault: 'Open',
   dayOverrides: {},
+  // Seeded with MHHS rather than left blank, which does two jobs: anyone who
+  // set up school before schedules were editable keeps exactly the week they
+  // had (the spread in load() fills these in for them, so there is no
+  // migration to get wrong), and a new user somewhere else opens the editor
+  // onto a working example instead of an empty screen. All of it is editable
+  // and deletable — "Start from scratch" in the editor clears the lot.
+  schedules: MHHS_SCHEDULES,
+  weekdays: MHHS_WEEKDAYS,
+  specialDates: MHHS_SPECIAL_DATES,
+  presetId: 'mhhs',
 }
 
 const todayKey = () => {
@@ -412,6 +423,73 @@ export function setDaySchedule(date: string, scheduleId: string | null) {
   if (scheduleId === null) delete next[date]
   else next[date] = scheduleId
   commit({ ...db, school: { ...db.school, dayOverrides: next } })
+}
+
+/** Add or replace one day shape. */
+export function saveSchedule(sched: BellSchedule) {
+  commit({
+    ...db,
+    school: { ...db.school, schedules: { ...db.school.schedules, [sched.id]: sched } },
+  })
+}
+
+/**
+ * Drop a day shape, and every reference to it. A weekday still pointing at a
+ * deleted schedule would resolve to null and read as "no school", which looks
+ * like the calendar losing your week rather than you deleting a schedule.
+ */
+export function deleteSchedule(id: string) {
+  const schedules = { ...db.school.schedules }
+  delete schedules[id]
+
+  const weekdays = { ...db.school.weekdays }
+  for (const [dow, sid] of Object.entries(weekdays)) if (sid === id) delete weekdays[dow]
+
+  const specialDates = { ...db.school.specialDates }
+  for (const [date, sid] of Object.entries(specialDates)) if (sid === id) delete specialDates[date]
+
+  const dayOverrides = { ...db.school.dayOverrides }
+  for (const [date, sid] of Object.entries(dayOverrides)) if (sid === id) delete dayOverrides[date]
+
+  commit({ ...db, school: { ...db.school, schedules, weekdays, specialDates, dayOverrides } })
+}
+
+/** Point one weekday at a day shape, or at nothing (no school that day). */
+export function setWeekday(dow: number, scheduleId: string | null) {
+  const weekdays = { ...db.school.weekdays }
+  if (scheduleId === null) delete weekdays[String(dow)]
+  else weekdays[String(dow)] = scheduleId
+  commit({ ...db, school: { ...db.school, weekdays } })
+}
+
+/** Wipe the seeded preset so a school that looks nothing like MHHS starts
+ *  from a blank week instead of deleting eleven schedules by hand. */
+export function clearSchedules() {
+  commit({
+    ...db,
+    school: {
+      ...db.school,
+      schedules: {},
+      weekdays: {},
+      specialDates: {},
+      dayOverrides: {},
+      presetId: undefined,
+    },
+  })
+}
+
+/** Drop the MHHS tables back in, for anyone who cleared them by mistake. */
+export function loadPreset() {
+  commit({
+    ...db,
+    school: {
+      ...db.school,
+      schedules: MHHS_SCHEDULES,
+      weekdays: MHHS_WEEKDAYS,
+      specialDates: MHHS_SPECIAL_DATES,
+      presetId: 'mhhs',
+    },
+  })
 }
 
 export function setDensity(px: number) {

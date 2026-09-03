@@ -15,7 +15,8 @@ import {
 } from '../lib/time'
 import { BlockCard, RAIL_W } from './BlockCard'
 import { moveOccurrenceToDate, reshapeOccurrence } from '../lib/store'
-import { SCHEDULES, scheduleIdFor } from '../lib/bell'
+import { scheduleIdFor } from '../lib/bell'
+import type { SchoolConfig } from '../lib/types'
 
 const HOURS = Array.from(
   { length: Math.floor((DAY_END_MIN - DAY_START_MIN) / 60) + 1 },
@@ -37,7 +38,7 @@ interface Props {
   onDropTarget: (i: number | null) => void
   onSwipeDay: (dir: 1 | -1) => void
   schoolEnabled: boolean
-  dayOverrides: Record<string, string>
+  school: SchoolConfig
   onEditDaySchedule: (date: string) => void
   empty: boolean
   onSetUpSchool: () => void
@@ -60,7 +61,7 @@ export function WeekGrid({
   onDropTarget,
   onSwipeDay,
   schoolEnabled,
-  dayOverrides,
+  school,
   onEditDaySchedule,
   empty,
   onSetUpSchool,
@@ -308,11 +309,11 @@ export function WeekGrid({
           const key = dateKey(d)
           const past = key < dateKey(now)
           const weekend = d.getDay() === 0 || d.getDay() === 6
-          const schedId = schoolEnabled ? scheduleIdFor(key, d.getDay(), dayOverrides) : null
-          const manual = Boolean(dayOverrides[key])
+          const schedId = schoolEnabled ? scheduleIdFor(key, d.getDay(), school) : null
+          const manual = Boolean(school.dayOverrides[key])
           const chip = schoolEnabled
             ? schedId
-              ? SCHEDULES[schedId]?.short
+              ? school.schedules[schedId]?.short
               : !weekend
                 ? 'NO SCHOOL'
                 : undefined

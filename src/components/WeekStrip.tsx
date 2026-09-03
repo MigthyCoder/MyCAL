@@ -1,6 +1,7 @@
 import { dateKey, fmtDayLabel, isSameDay } from '../lib/time'
 import type { Occurrence } from '../lib/occurrences'
-import { SCHEDULES, scheduleIdFor } from '../lib/bell'
+import { scheduleIdFor } from '../lib/bell'
+import type { SchoolConfig } from '../lib/types'
 
 /**
  * The phone's replacement for seven columns: a row of day chips you tap between.
@@ -14,7 +15,7 @@ export function WeekStrip({
   now,
   occurrences,
   schoolEnabled,
-  dayOverrides,
+  school,
   dropTarget,
 }: {
   days: Date[]
@@ -23,7 +24,7 @@ export function WeekStrip({
   now: Date
   occurrences: Occurrence[]
   schoolEnabled: boolean
-  dayOverrides: Record<string, string>
+  school: SchoolConfig
   /** Index of the day a lifted block is currently hovering over. */
   dropTarget: number | null
 }) {
@@ -40,8 +41,8 @@ export function WeekStrip({
         const today = isSameDay(d, now)
         const past = key < dateKey(now)
         const open = openByDay.get(key) ?? 0
-        const sched = schoolEnabled ? scheduleIdFor(key, d.getDay(), dayOverrides) : null
-        const short = schoolEnabled ? SCHEDULES[sched ?? '']?.short : undefined
+        const sched = schoolEnabled ? scheduleIdFor(key, d.getDay(), school) : null
+        const short = schoolEnabled ? school.schedules[sched ?? '']?.short : undefined
         return (
           <button
             key={key}

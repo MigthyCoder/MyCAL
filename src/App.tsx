@@ -238,7 +238,7 @@ export default function App() {
           now={now}
           occurrences={occurrences}
           schoolEnabled={db.school.enabled}
-          dayOverrides={db.school.dayOverrides}
+          school={db.school}
           dropTarget={dropTarget}
         />
       )}
@@ -255,7 +255,7 @@ export default function App() {
           else setMobileDay(next)
         }}
         schoolEnabled={db.school.enabled}
-        dayOverrides={db.school.dayOverrides}
+        school={db.school}
         onEditDaySchedule={setSchedDay}
         empty={empty}
         onSetUpSchool={() => setOnboarding(true)}
@@ -322,7 +322,7 @@ export default function App() {
       {schedDay && (
         <DayScheduleSheet
           date={schedDay}
-          overrides={db.school.dayOverrides}
+          school={db.school}
           onClose={() => setSchedDay(null)}
         />
       )}
