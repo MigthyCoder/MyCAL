@@ -702,6 +702,9 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   padding: 0 3px; border-radius: 4px; transition: opacity .13s, color .13s, background .13s;
 }
 .dayhead .cell:hover .daycog { opacity: 1; }
+/* Hover is the only thing that revealed this, so tabbing to it focused a
+   control nobody could see. Focus reveals it too. */
+.daycog:focus-visible { opacity: 1; }
 .daycog:hover { background: var(--raised); color: var(--text); }
 .schedchip {
   display: inline-block; margin-top: 3px;

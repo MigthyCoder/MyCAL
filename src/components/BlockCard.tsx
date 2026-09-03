@@ -265,6 +265,8 @@ export function BlockCard({
           <button
             className="pindot"
             title={occ.outcome === 'finished' ? 'Done — tap to undo' : 'Mark done'}
+            aria-label={occ.outcome === 'finished' ? `Mark "${occ.title}" not done` : `Mark "${occ.title}" done`}
+            aria-pressed={occ.outcome === 'finished'}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
             onClick={(e) => {
@@ -387,6 +389,8 @@ export function BlockCard({
             <button
               className="btn sm"
               style={canHostRider ? undefined : { marginLeft: 'auto' }}
+              title="More options"
+              aria-label={`More options for "${occ.title}"`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={onOpenInspector}
             >

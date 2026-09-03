@@ -330,6 +330,7 @@ export function WeekGrid({
                   <button
                     className="daycog"
                     title="Change this day's bell schedule"
+                    aria-label={`Change bell schedule for ${fmtDayLabel(d)}`}
                     onClick={(e) => { e.stopPropagation(); onEditDaySchedule(key) }}
                   >
                     ⋯
