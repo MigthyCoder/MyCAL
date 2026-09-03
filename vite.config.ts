@@ -42,6 +42,11 @@ export default defineConfig(({ command }) => {
       },
     }),
   ],
-  server: { port: 5273 },
+  // strictPort matters more than it looks. Your calendar lives in localStorage,
+  // which is scoped to the origin — so if 5273 is busy and Vite quietly starts
+  // on 5274 instead, the app opens completely empty and reads as "it lost
+  // everything". Failing to start is the honest outcome; the data is still
+  // there on 5273 once whatever took the port is gone.
+  server: { port: 5273, strictPort: true },
   }
 })
