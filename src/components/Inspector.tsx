@@ -355,8 +355,8 @@ export function Inspector({
       {occ.generated && (
         <div className="note" style={{ marginTop: 20 }}>
           <span className="k">From your bell schedule</span>
-          Times come from the official MHHS schedule for this date, so they're right
-          on block days too. Notes and markers you add here stay on this day only.
+          Times come from whichever day shape this date runs, so they're right on
+          block days too. Notes and markers you add here stay on this day only.
         </div>
       )}
 
