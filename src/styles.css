@@ -1572,3 +1572,33 @@ button.tasktext:hover { background: var(--raised); }
   .tasktext { min-height: 44px; display: flex; align-items: center; }
   .taskrow .rowx { min-width: 44px; min-height: 44px; }
 }
+
+/* Scheduling a task from the dock. The chip is the link back to the block. */
+.taskwhen { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.whenchip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 122, 69, 0.13);
+  color: var(--now);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.whenchip:hover { background: rgba(255, 122, 69, 0.24); }
+
+.taskwhenbtn { flex: none; opacity: 0; transition: opacity 0.13s; }
+/* Revealed on hover so a long list stays quiet, but never hover-only: focus
+   brings it back for the keyboard, and mobile below shows it always. */
+.taskrow:hover .taskwhenbtn,
+.taskwhenbtn:focus-visible { opacity: 1; }
+
+.taskdate { flex: none; width: 150px; padding: 4px 8px; font-size: 12px; }
+
+@media (max-width: 760px) {
+  /* No hover on a phone, so the affordance has to be permanent. */
+  .taskwhenbtn { opacity: 1; min-height: 44px; }
+  .whenchip { min-height: 44px; display: inline-flex; align-items: center; }
+  .taskdate { min-height: 44px; width: 140px; }
+  .taskwhen .rowx { min-width: 44px; min-height: 44px; }
+}

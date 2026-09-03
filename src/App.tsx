@@ -231,7 +231,22 @@ export default function App() {
         </div>
       )}
 
-      <TaskDock tasks={db.tasks ?? []} />
+      <TaskDock
+        tasks={db.tasks ?? []}
+        onJumpTo={(seriesId, date) => {
+          const occ = occurrences.find((o) => o.series.id === seriesId && o.date === date)
+          // The block may be outside the loaded window if it was scheduled for
+          // another week, so move the calendar there first and let the week
+          // that renders carry the highlight.
+          if (occ) goToOccurrence(occ)
+          else {
+            const d = parseKey(date)
+            setAnchor(startOfWeek(d))
+            setMobileDay(d.getDay() === 0 ? 6 : d.getDay() - 1)
+            setFocusedDay(null)
+          }
+        }}
+      />
 
       {isMobile && (
         <WeekStrip

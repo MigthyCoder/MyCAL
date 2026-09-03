@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Task } from '../lib/types'
-import { addTask, clearDoneTasks, deleteTask, editTask, toggleTask } from '../lib/store'
+import {
+  addTask,
+  clearDoneTasks,
+  deleteTask,
+  editTask,
+  scheduleTask,
+  toggleTask,
+  unscheduleTask,
+} from '../lib/store'
+import { dateKey, parseKey } from '../lib/time'
+
+/** "Thu Sep 3" — enough to place it without spending a whole row on a date. */
+const fmtWhen = (d: string) =>
+  parseKey(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 
 const OPEN_KEY = 'mycal.tasks.open'
 
@@ -12,7 +25,14 @@ const OPEN_KEY = 'mycal.tasks.open'
  * made that claim yet. Collapsed it costs one row, because most of the time
  * you are looking at the week, not the list.
  */
-export function TaskDock({ tasks }: { tasks: Task[] }) {
+export function TaskDock({
+  tasks,
+  onJumpTo,
+}: {
+  tasks: Task[]
+  /** Show me the block this task became. */
+  onJumpTo?: (seriesId: string, date: string) => void
+}) {
   const [open, setOpen] = useState(() => {
     try {
       return localStorage.getItem(OPEN_KEY) === '1'
@@ -23,6 +43,7 @@ export function TaskDock({ tasks }: { tasks: Task[] }) {
   const [draft, setDraft] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [schedulingId, setSchedulingId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -137,6 +158,48 @@ export function TaskDock({ tasks }: { tasks: Task[] }) {
                   title="Click to rename"
                 >
                   {t.text}
+                </button>
+              )}
+              {t.scheduledFor && t.seriesId ? (
+                <span className="taskwhen">
+                  <button
+                    className="whenchip"
+                    title="Show me this on the calendar"
+                    aria-label={`"${t.text}" is scheduled for ${fmtWhen(t.scheduledFor)}. Show it on the calendar.`}
+                    onClick={() => onJumpTo?.(t.seriesId!, t.scheduledFor!)}
+                  >
+                    {fmtWhen(t.scheduledFor)}
+                  </button>
+                  <button
+                    className="rowx"
+                    title="Take it back off the calendar"
+                    aria-label={`Unschedule "${t.text}"`}
+                    onClick={() => unscheduleTask(t.id)}
+                  >
+                    ↩
+                  </button>
+                </span>
+              ) : schedulingId === t.id ? (
+                <input
+                  className="field taskdate"
+                  type="date"
+                  autoFocus
+                  defaultValue={dateKey(new Date())}
+                  aria-label={`Pick a day for "${t.text}"`}
+                  onBlur={() => setSchedulingId(null)}
+                  onChange={(e) => {
+                    if (!e.target.value) return
+                    scheduleTask(t.id, e.target.value)
+                    setSchedulingId(null)
+                  }}
+                />
+              ) : (
+                <button
+                  className="btn sm ghost taskwhenbtn"
+                  aria-label={`Schedule "${t.text}"`}
+                  onClick={() => setSchedulingId(t.id)}
+                >
+                  Schedule
                 </button>
               )}
               <button

@@ -114,6 +114,16 @@ export interface Task {
   createdAt: number
   /** When it got ticked, so "done" can be shown newest-first and swept later. */
   doneAt?: number
+  /**
+   * The block this got scheduled as. The task stays in the list rather than
+   * disappearing onto the grid: you wrote it down because you wanted to see it
+   * until it is actually done, and giving it a time does not make that less
+   * true. Ticking either side resolves the other.
+   */
+  seriesId?: string
+  /** Which day that block sits on. Outcomes are per-date, so resolving the
+   *  block from this side needs the date as well as the series. */
+  scheduledFor?: string
 }
 
 /**

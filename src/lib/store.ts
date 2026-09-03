@@ -188,7 +188,16 @@ export function updateSeries(id: string, patch: Partial<Series>) {
 
 /** Archive rather than delete, so past weeks don't silently rewrite themselves. */
 export function archiveSeries(id: string) {
-  updateSeries(id, { archived: true })
+  // An archived series stops generating occurrences, so a task still pointing
+  // at it would claim to be scheduled with nothing to show. Same treatment as
+  // delete: back to the pile.
+  commit({
+    ...db,
+    series: db.series.map((s) => (s.id === id ? { ...s, archived: true } : s)),
+    tasks: (db.tasks ?? []).map((t) =>
+      t.seriesId === id ? { ...t, seriesId: undefined, scheduledFor: undefined } : t,
+    ),
+  })
 }
 
 /** Hard delete — only offered for one-off blocks created by mistake. */
@@ -197,10 +206,46 @@ export function deleteSeries(id: string) {
     ...db,
     series: db.series.filter((s) => s.id !== id),
     overrides: db.overrides.filter((o) => o.seriesId !== id),
+    // A task pointing at a deleted block would render as "scheduled" forever
+    // with nothing to jump to. Send it back to the pile instead.
+    tasks: (db.tasks ?? []).map((t) =>
+      t.seriesId === id ? { ...t, seriesId: undefined, scheduledFor: undefined } : t,
+    ),
   })
 }
 
 // ------------------------------------------------------------- overrides
+
+/** Compute the next overrides array without committing, so a change that has to
+ *  touch tasks and overrides together lands in one write. */
+function withOverride(
+  overrides: Override[],
+  seriesId: string,
+  date: string,
+  patch: Partial<Override>,
+): Override[] {
+  const i = overrides.findIndex((o) => o.seriesId === seriesId && o.date === date)
+  const next = [...overrides]
+  if (i === -1) next.push({ seriesId, date, ...patch })
+  else next[i] = { ...next[i], ...patch }
+  return next
+}
+
+/** As above, for removing fields (spread-merge cannot express undefined). */
+function withoutOverrideFields(
+  overrides: Override[],
+  seriesId: string,
+  date: string,
+  fields: (keyof Override)[],
+): Override[] {
+  const i = overrides.findIndex((o) => o.seriesId === seriesId && o.date === date)
+  if (i === -1) return overrides
+  const copy = { ...overrides[i] }
+  for (const f of fields) delete copy[f]
+  const next = [...overrides]
+  next[i] = copy
+  return next
+}
 
 export function patchOverride(seriesId: string, date: string, patch: Partial<Override>) {
   const i = db.overrides.findIndex((o) => o.seriesId === seriesId && o.date === date)
@@ -296,14 +341,33 @@ export function duplicateOccurrence(occ: Occurrence): Series {
 // --------------------------------------------------------------- outcomes
 
 export function setOutcome(occ: Occurrence, outcome: Outcome, note?: string) {
-  patchOverride(occ.series.id, occ.date, {
+  const overrides = withOverride(db.overrides, occ.series.id, occ.date, {
     outcome,
     ...(note?.trim() ? { outcomeNote: note.trim() } : {}),
   })
+  // Finishing the block ticks the task it came from, so a scheduled task is
+  // never something you have to resolve twice. Only 'finished' counts:
+  // 'dropped' means you did not do it, so the task is still owed.
+  const tasks = (db.tasks ?? []).map((t) =>
+    t.seriesId === occ.series.id && t.scheduledFor === occ.date && outcome === 'finished'
+      ? { ...t, done: true, doneAt: Date.now() }
+      : t,
+  )
+  commit({ ...db, overrides, tasks })
 }
 
 export function clearOutcome(occ: Occurrence) {
-  unsetOverrideFields(occ.series.id, occ.date, ['outcome', 'outcomeNote', 'movedTo'])
+  const overrides = withoutOverrideFields(db.overrides, occ.series.id, occ.date, [
+    'outcome',
+    'outcomeNote',
+    'movedTo',
+  ])
+  const tasks = (db.tasks ?? []).map((t) =>
+    t.seriesId === occ.series.id && t.scheduledFor === occ.date
+      ? { ...t, done: false, doneAt: undefined }
+      : t,
+  )
+  commit({ ...db, overrides, tasks })
 }
 
 /**
@@ -515,10 +579,79 @@ export function addTask(text: string): Task | null {
 }
 
 export function toggleTask(id: string) {
+  const task = (db.tasks ?? []).find((t) => t.id === id)
+  if (!task) return
+  const nextDone = !task.done
+
+  const tasks = (db.tasks ?? []).map((t) =>
+    t.id === id ? { ...t, done: nextDone, doneAt: nextDone ? Date.now() : undefined } : t,
+  )
+
+  // A scheduled task and its block are the same promise. Ticking here resolves
+  // the block too, so the grid does not keep asking about something you have
+  // already said you did.
+  let overrides = db.overrides
+  if (task.seriesId && task.scheduledFor) {
+    overrides = nextDone
+      ? withOverride(overrides, task.seriesId, task.scheduledFor, { outcome: 'finished' })
+      : withoutOverrideFields(overrides, task.seriesId, task.scheduledFor, [
+          'outcome',
+          'outcomeNote',
+        ])
+  }
+
+  commit({ ...db, tasks, overrides })
+}
+
+/**
+ * Give a task a day. It becomes a pin — a moment on the grid rather than a
+ * box — because a task you have not sized is exactly what a pin is for.
+ *
+ * The task stays in the list, linked. Scheduling something is not the same as
+ * having done it, and a list that empties when you make a plan is a list that
+ * lies to you.
+ */
+export function scheduleTask(id: string, date: string): Series | null {
+  const task = (db.tasks ?? []).find((t) => t.id === id)
+  if (!task) return null
+  if (task.seriesId) return null // already on the grid; unschedule first
+
+  const series: Series = {
+    id: uid(),
+    title: task.text,
+    kind: 'task',
+    category: 'personal',
+    schoolRole: null,
+    startMin: END_OF_DAY_MIN,
+    endMin: END_OF_DAY_MIN,
+    recurrence: null,
+    anchorDate: date,
+    createdAt: Date.now(),
+    pin: true,
+  }
+
   commit({
     ...db,
+    series: [...db.series, series],
     tasks: (db.tasks ?? []).map((t) =>
-      t.id === id ? { ...t, done: !t.done, doneAt: !t.done ? Date.now() : undefined } : t,
+      t.id === id ? { ...t, seriesId: series.id, scheduledFor: date } : t,
+    ),
+  })
+  return series
+}
+
+/** Take it back off the grid. The task returns to the pile rather than being
+ *  deleted — you still have to do it, you just have not said when. */
+export function unscheduleTask(id: string) {
+  const task = (db.tasks ?? []).find((t) => t.id === id)
+  if (!task?.seriesId) return
+  const sid = task.seriesId
+  commit({
+    ...db,
+    series: db.series.filter((s) => s.id !== sid),
+    overrides: db.overrides.filter((o) => o.seriesId !== sid),
+    tasks: (db.tasks ?? []).map((t) =>
+      t.id === id ? { ...t, seriesId: undefined, scheduledFor: undefined } : t,
     ),
   })
 }
