@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { DayNote, DB, MarkerType, Outcome, Override, SchoolConfig, Series } from './types'
 import type { Occurrence } from './occurrences'
-import { MHHS_SCHEDULES, MHHS_SPECIAL_DATES, MHHS_WEEKDAYS, type BellSchedule } from './bell'
+import { MHHS_SCHEDULES, MHHS_SPECIAL_DATES, MHHS_WEEKDAYS, PRESETS, type BellSchedule } from './bell'
 
 const KEY = 'mycal.db.v1'
 
@@ -478,16 +478,23 @@ export function clearSchedules() {
   })
 }
 
-/** Drop the MHHS tables back in, for anyone who cleared them by mistake. */
-export function loadPreset() {
+/** Load a school's tables wholesale. Replaces the shapes and the weekday
+ *  pattern; leaves your class names alone, since period numbers usually still
+ *  mean the same thing and retyping them is the tedious part. */
+export function loadPreset(presetId: string) {
+  const preset = PRESETS[presetId]
+  if (!preset) return
   commit({
     ...db,
     school: {
       ...db.school,
-      schedules: MHHS_SCHEDULES,
-      weekdays: MHHS_WEEKDAYS,
-      specialDates: MHHS_SPECIAL_DATES,
-      presetId: 'mhhs',
+      schedules: preset.schedules,
+      weekdays: preset.weekdays,
+      specialDates: preset.specialDates,
+      // Your own per-date swaps pointed at the old school's shape ids, which
+      // do not exist here. Keeping them would silently blank those days.
+      dayOverrides: {},
+      presetId: preset.id,
     },
   })
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ClassRoster } from '../lib/types'
 import { getDB, setOnboarded, setSchool, setStartedOn } from '../lib/store'
-import { ordinal, periodsIn, type PeriodNo } from '../lib/bell'
+import { periodLabelIn, periodsIn, type PeriodNo } from '../lib/bell'
 import { fmtRange } from '../lib/time'
 import { Sheet } from './ui'
 import { ScheduleEditor } from './ScheduleEditor'
@@ -103,7 +103,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           </div>
           {periods.map((p) => (
             <div className="prow" key={p} style={{ gridTemplateColumns: '84px 1fr 150px 72px' }}>
-              <div className="plabel">{ordinal(p)}</div>
+              <div className="plabel">{periodLabelIn(db.school.schedules, p)}</div>
               <input
                 className="field"
                 value={classes[String(p)]?.title ?? ''}
@@ -182,7 +182,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
                 if (slot.role === 'breakfast' && !showBreakfast) return null
                 if (slot.role === 'lunch' && !showLunch) return null
                 const title = slot.period
-                  ? classes[String(slot.period)]?.title?.trim() || `— ${ordinal(slot.period)} —`
+                  ? classes[String(slot.period)]?.title?.trim() || `— ${slot.label} —`
                   : slot.label
                 const unset = Boolean(slot.period) && !classes[String(slot.period!)]?.title?.trim()
                 const isFlex = Boolean(slot.period && classes[String(slot.period)]?.flex)

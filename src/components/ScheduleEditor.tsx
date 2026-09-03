@@ -3,6 +3,7 @@ import {
   blankSchedule,
   nextSlotKey,
   ordinal,
+  PRESETS,
   type BellSchedule,
   type Slot,
   type SlotRole,
@@ -65,6 +66,7 @@ export function ScheduleEditor({ onClose }: { onClose: () => void }) {
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const ids = useMemo(() => Object.keys(schedules), [schedules])
+  const activePreset = db.school.presetId ? PRESETS[db.school.presetId] : undefined
   const editing = editingId ? schedules[editingId] : null
 
   const addSchedule = () => {
@@ -362,16 +364,41 @@ export function ScheduleEditor({ onClose }: { onClose: () => void }) {
           Click any date on the calendar to swap that single day.
         </div>
 
+        <h4>Start from a school</h4>
+        <div className="row wrap" style={{ gap: 8 }}>
+          {Object.values(PRESETS).map((p) => (
+            <button
+              key={p.id}
+              className={`btn ghost ${db.school.presetId === p.id ? 'on' : ''}`}
+              aria-pressed={db.school.presetId === p.id}
+              onClick={() => {
+                // Replacing every shape is not something to do to someone by
+                // accident, and it drops their per-date swaps with it.
+                if (ids.length > 0 && !confirm(`Replace your schedules with ${p.label}?`)) return
+                loadPreset(p.id)
+                setEditingId(null)
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+          <button
+            className="btn ghost"
+            onClick={() => {
+              if (ids.length > 0 && !confirm('Delete every day shape and start empty?')) return
+              clearSchedules()
+            }}
+          >
+            Start from scratch
+          </button>
+        </div>
+        {activePreset?.note && (
+          <div className="note" style={{ marginTop: 10, borderLeftColor: 'var(--warn)' }}>
+            {activePreset.note}
+          </div>
+        )}
+
         <div className="actions">
-          {db.school.presetId === 'mhhs' ? (
-            <button className="btn sm ghost" onClick={clearSchedules}>
-              Start from scratch
-            </button>
-          ) : (
-            <button className="btn sm ghost" onClick={loadPreset}>
-              Load the MHHS preset
-            </button>
-          )}
           <div className="spacer" />
           <button className="btn solid" onClick={onClose}>Done</button>
         </div>

@@ -143,9 +143,13 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
           if (slot.role === 'breakfast' && !school.showBreakfast) continue
           if (slot.role === 'lunch' && !school.showLunch) continue
 
-          const roster = slot.period ? school.classes[String(slot.period)] : undefined
+          // `slot.period != null`, not a truthiness check: period 0 is a real
+          // thing (a zero period before first bell) and `0 ?` is false, which
+          // would render it for every student instead of only the ones who
+          // have it.
+          const roster = slot.period != null ? school.classes[String(slot.period)] : undefined
           let title = slot.label
-          if (slot.period) {
+          if (slot.period != null) {
             const assigned = roster?.title?.trim()
             if (!assigned) continue // period you don't have a class for
             title = assigned
