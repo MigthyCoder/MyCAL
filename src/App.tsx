@@ -6,6 +6,7 @@ import { RescheduleSheet, type ReschedDraft } from './components/RescheduleSheet
 import { Onboarding } from './components/Onboarding'
 import { DayScheduleSheet } from './components/DayScheduleSheet'
 import { WeekStrip } from './components/WeekStrip'
+import { TaskDock } from './components/TaskDock'
 import { SyncButton, SyncSheet } from './components/SyncSheet'
 import { MOBILE, useMedia } from './lib/useMedia'
 import { buildOccurrences, openLoops, type Occurrence } from './lib/occurrences'
@@ -229,6 +230,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <TaskDock tasks={db.tasks ?? []} />
 
       {isMobile && (
         <WeekStrip

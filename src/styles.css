@@ -1438,3 +1438,137 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
     transform: translate(-50%, -50%);
   }
 }
+
+/* ================================================================== tasks */
+
+/* The undated pile. Collapsed it is one row; the add field stays reachable in
+   both states so writing something down is never gated on opening a panel. */
+.taskdock {
+  flex: none;
+  margin: 0 20px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.taskdock.open { background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 120px), var(--panel); }
+
+.taskbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 12px;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.taskToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+  padding: 4px 2px;
+  flex: none;
+}
+.taskToggle:hover { color: var(--text); }
+.taskToggle .caret {
+  display: inline-block;
+  transition: transform 0.15s;
+  color: var(--text-3);
+  font-size: 14px;
+  line-height: 1;
+}
+.taskToggle .caret.on { transform: rotate(90deg); }
+
+.taskcount {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.taskadd { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px; }
+.taskadd .field { flex: 1; padding: 7px 10px; font-size: 12.5px; }
+
+.tasklist { padding: 2px 10px 10px; }
+
+.taskempty {
+  font-size: 12.5px;
+  color: var(--text-3);
+  line-height: 1.5;
+  padding: 4px 4px 8px;
+  max-width: 60ch;
+}
+
+.taskrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 2px;
+  border-radius: 7px;
+}
+.taskrow:hover { background: rgba(255, 255, 255, 0.022); }
+.taskcheck {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.taskrow input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--now);
+  cursor: pointer;
+}
+
+/* A button, not a div: renaming is a real action and should be reachable by
+   keyboard like everything else. */
+.tasktext {
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+  padding: 5px 4px;
+  border-radius: 6px;
+  line-height: 1.35;
+}
+button.tasktext:hover { background: var(--raised); }
+.taskrow .field { flex: 1; padding: 4px 8px; font-size: 13px; }
+
+.taskrow.is-done .tasktext { color: var(--text-3); text-decoration: line-through; }
+
+.taskdone { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.taskdonehead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px 4px;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.taskdonehead .btn { margin-left: auto; }
+
+@media (max-width: 760px) {
+  .taskdock { margin: 0 12px 10px; }
+  .taskbar { padding: 8px; gap: 8px; }
+  .taskadd { min-width: 100%; }
+  /* Same 44px floor as everything else you tap. */
+  .taskrow { padding: 4px 2px; }
+  .taskToggle { min-height: 44px; }
+  .taskadd .field { min-height: 44px; }
+  .taskadd .btn { min-height: 44px; }
+  /* 44px of tappable label around a 20px box. */
+  .taskcheck { min-width: 44px; min-height: 44px; }
+  .taskrow input[type='checkbox'] { width: 20px; height: 20px; }
+  .tasktext { min-height: 44px; display: flex; align-items: center; }
+  .taskrow .rowx { min-width: 44px; min-height: 44px; }
+}

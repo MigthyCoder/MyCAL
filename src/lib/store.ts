@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { DayNote, DB, MarkerType, Outcome, Override, SchoolConfig, Series } from './types'
+import type { DayNote, DB, MarkerType, Outcome, Override, SchoolConfig, Series, Task } from './types'
 import type { Occurrence } from './occurrences'
 import { MHHS_SCHEDULES, MHHS_SPECIAL_DATES, MHHS_WEEKDAYS, PRESETS, type BellSchedule } from './bell'
 
@@ -51,6 +51,7 @@ const emptyDB = (): DB => ({
   series: [],
   overrides: [],
   reminders: [],
+  tasks: [],
   school: DEFAULT_SCHOOL,
   onboarded: false,
 })
@@ -497,6 +498,43 @@ export function loadPreset(presetId: string) {
       presetId: preset.id,
     },
   })
+}
+
+// ------------------------------------------------------------------ tasks
+
+/** Undated work. Blank text is a no-op rather than an empty row you then have
+ *  to delete. */
+export function addTask(text: string): Task | null {
+  const t = text.trim()
+  if (!t) return null
+  const task: Task = { id: uid(), text: t, createdAt: Date.now() }
+  // Newest first: you add a task because it just occurred to you, and burying
+  // it under everything you already wrote down is how it gets forgotten.
+  commit({ ...db, tasks: [task, ...(db.tasks ?? [])] })
+  return task
+}
+
+export function toggleTask(id: string) {
+  commit({
+    ...db,
+    tasks: (db.tasks ?? []).map((t) =>
+      t.id === id ? { ...t, done: !t.done, doneAt: !t.done ? Date.now() : undefined } : t,
+    ),
+  })
+}
+
+export function editTask(id: string, text: string) {
+  const t = text.trim()
+  if (!t) return
+  commit({ ...db, tasks: (db.tasks ?? []).map((x) => (x.id === id ? { ...x, text: t } : x)) })
+}
+
+export function deleteTask(id: string) {
+  commit({ ...db, tasks: (db.tasks ?? []).filter((t) => t.id !== id) })
+}
+
+export function clearDoneTasks() {
+  commit({ ...db, tasks: (db.tasks ?? []).filter((t) => !t.done) })
 }
 
 export function setDensity(px: number) {

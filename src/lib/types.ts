@@ -95,6 +95,28 @@ export interface Override {
 }
 
 /**
+ * Something to do with no date on it at all.
+ *
+ * Everything else here is anchored to a day, because the whole product is about
+ * time you actually have. But "email Ms. Chen" is real work that isn't a promise
+ * about Tuesday, and forcing a date onto it means either lying to yourself or
+ * not writing it down. So this is the one thing the calendar deliberately does
+ * not place: a pile you work off when a gap opens up.
+ *
+ * Deliberately not a Series: a Series must expand into dated occurrences, and
+ * giving one a fake anchorDate would put it on the grid, which is exactly what
+ * this is for avoiding.
+ */
+export interface Task {
+  id: string
+  text: string
+  done?: boolean
+  createdAt: number
+  /** When it got ticked, so "done" can be shown newest-first and swept later. */
+  doneAt?: number
+}
+
+/**
  * Something to do on a day, with no particular time. "Call grandma" isn't a
  * 30-minute block and pretending it is makes the grid lie about your evening.
  */
@@ -149,6 +171,9 @@ export interface DB {
   series: Series[]
   overrides: Override[]
   reminders: Reminder[]
+  /** Undated work. Absent on documents written before it existed, which load()
+   *  fills with an empty list. */
+  tasks?: Task[]
   school: SchoolConfig
   onboarded: boolean
 }

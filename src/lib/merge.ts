@@ -1,9 +1,14 @@
-import type { DB, Override, Reminder, Series } from './types'
+import type { DB, Override, Reminder, Series, Task } from './types'
 
 /** A calendar with nothing in it. A device in this state has nothing worth
  *  keeping, so it must never win a merge. */
 export const isEmpty = (d: DB) =>
-  d.series.length === 0 && (d.reminders?.length ?? 0) === 0 && !d.school.enabled
+  d.series.length === 0 &&
+  (d.reminders?.length ?? 0) === 0 &&
+  // A device where you have only ever jotted tasks still has your work on it.
+  // Leaving tasks out here would let a "fresh" phone overwrite it.
+  (d.tasks?.length ?? 0) === 0 &&
+  !d.school.enabled
 
 /**
  * Which document's settings — school roster, density, start date — survive.
@@ -40,10 +45,19 @@ export function mergeDB(local: DB, remote: DB, remoteIsNewer: boolean): DB {
   for (const r of loser.reminders ?? []) reminders.set(r.id, r)
   for (const r of winner.reminders ?? []) reminders.set(r.id, r)
 
+  // Unioned like everything else: a task added on the phone and one added on
+  // the laptop are two tasks, not a conflict. Ticking the SAME task on both
+  // falls back to the winner, which is the right call either way since both
+  // sides agree it is handled.
+  const tasks = new Map<string, Task>()
+  for (const t of loser.tasks ?? []) tasks.set(t.id, t)
+  for (const t of winner.tasks ?? []) tasks.set(t.id, t)
+
   return {
     ...winner,
     series: [...series.values()],
     overrides: [...overrides.values()],
     reminders: [...reminders.values()],
+    tasks: [...tasks.values()],
   }
 }
