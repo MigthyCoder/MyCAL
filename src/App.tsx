@@ -106,7 +106,7 @@ export default function App() {
           <span>your life, in time</span>
         </div>
         <div className="nav">
-          <button className="btn icon" onClick={() => jump(-1)} title="Previous week (←)">‹</button>
+          <button className="btn icon" onClick={() => jump(-1)} title="Previous week (←)" aria-label="Previous week">‹</button>
           {/* Looking back at an old week is a first-class use of this thing, so
               the range doubles as a jump-to-date control. */}
           <label className="range jump" title="Jump to a date">
@@ -121,7 +121,7 @@ export default function App() {
               }}
             />
           </label>
-          <button className="btn icon" onClick={() => jump(1)} title="Next week (→)">›</button>
+          <button className="btn icon" onClick={() => jump(1)} title="Next week (→)" aria-label="Next week">›</button>
           {!thisWeek && (
             <button className="btn ghost sm" style={{ marginLeft: 8 }} onClick={goToday}>
               Today
@@ -129,6 +129,7 @@ export default function App() {
           )}
           <div className="zoom" title="Row height — taller rows fit more of a note">
             <button
+              aria-label="Shorter rows"
               disabled={db.density <= DENSITY_STEPS[0]}
               onClick={() => {
                 const i = DENSITY_STEPS.findIndex((d) => d >= db.density)
@@ -138,6 +139,7 @@ export default function App() {
               −
             </button>
             <button
+              aria-label="Taller rows"
               disabled={db.density >= DENSITY_STEPS[DENSITY_STEPS.length - 1]}
               onClick={() => {
                 const i = DENSITY_STEPS.findIndex((d) => d > db.density)
