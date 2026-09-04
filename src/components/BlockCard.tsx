@@ -14,6 +14,8 @@ import {
   PIN_H,
 } from '../lib/geometry'
 import { clearOutcome, setOutcome, setQuickNote, patchOverride } from '../lib/store'
+import { HoverCard, HoverCardTrigger } from './shadcn/hover-card'
+import { BlockDetails } from './BlockDetails'
 
 /** Width the hover rail claims, in px. The block slides left by this much so
  *  there's somewhere to click to add something beside it. */
@@ -209,7 +211,7 @@ export function BlockCard({
   const showWhen =
     !active && !tight && !covered && height >= 58 && (height >= 84 || subLines.length === 0)
 
-  return (
+  const body = (
     <div
       className={`block ${stateClass} ${compact ? 'short' : ''} ${tight ? 'tight' : ''} ${
         occ.series.schoolRole ? 'sch' : ''
@@ -432,5 +434,17 @@ export function BlockCard({
         </>
       )}
     </div>
+  )
+
+  // A block opened for editing already shows everything, and an unnamed pin has
+  // nothing to add — in both cases the card would be noise on top of the thing
+  // you are already looking at.
+  if (active || lifted) return body
+
+  return (
+    <HoverCard openDelay={450} closeDelay={80}>
+      <HoverCardTrigger asChild>{body}</HoverCardTrigger>
+      <BlockDetails occ={occ} />
+    </HoverCard>
   )
 }
