@@ -1,4 +1,47 @@
 /* ==========================================================================
+   Tailwind, deliberately without preflight.
+   --------------------------------------------------------------------------
+   `@import "tailwindcss"` would pull in preflight, whose global reset zeroes
+   margins, unstyles headings and rewrites border defaults. This sheet is 1800
+   lines of hand-written CSS that predates it and relies on those defaults, and
+   the calendar grid in particular would come apart. Importing the theme and
+   utility layers only gives shadcn's components everything they need while
+   leaving the existing app untouched.
+   ========================================================================== */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* shadcn addresses colour through its own token names. Rather than run a second
+   palette beside the one this app already has, they are aliased onto it — so a
+   shadcn Button and a hand-written .block read the same --panel, and the
+   appearance switch keeps working for both with no extra wiring. */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--panel);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--panel-2);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--text);
+  --color-primary-foreground: var(--on-solid);
+  --color-secondary: var(--raised);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--raised);
+  --color-muted-foreground: var(--text-3);
+  --color-accent: var(--raised);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--on-solid);
+  --color-border: var(--line-mid);
+  --color-input: var(--line-mid);
+  --color-ring: var(--now);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+}
+
+/* ==========================================================================
    Tokens
    --------------------------------------------------------------------------
    Two appearances off one set of semantic names. Nothing below this block

@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite'
+import { fileURLToPath, URL } from 'node:url'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // Built for https://<user>.github.io/MyCAL/, so assets need that prefix — but dev
@@ -8,8 +10,10 @@ export default defineConfig(({ command }) => {
   const base = process.env.BASE ?? (command === 'build' ? '/MyCAL/' : '/')
   return {
   base,
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png'],
