@@ -18,14 +18,37 @@ export interface Placed {
   stacked: number
   /** Key of the block it's riding on, when rider. */
   hostKey?: string
+  /**
+   * Minutes from this block's start until the next block begins in the same
+   * lane, or Infinity when nothing follows.
+   *
+   * A block is allowed to grow to a readable minimum height even when its
+   * duration is tiny — a five-minute brunch is 9px at default density, which
+   * is not a label. But growing past the next block's start makes the calendar
+   * draw an overlap that does not exist in the times, which is worse than a
+   * short block. This is the ceiling on that growth.
+   *
+   * Optional because the intermediate passes build Placed objects before the
+   * spacing is known; it is filled in for every block layoutDay returns, and
+   * absent is read as "no constraint".
+   */
+  availMin?: number
 }
 
-const MIN_VISUAL_MIN = 22 // a 10-minute block still needs to be clickable
-
-const span = (o: Occurrence) => ({
-  s: o.startMin,
-  e: Math.max(o.endMin, o.startMin + MIN_VISUAL_MIN),
-})
+/**
+ * Collision uses the real times, nothing padded.
+ *
+ * This used to inflate every block to a 22-minute minimum so a short one stayed
+ * clickable. That conflated two different jobs, and the packing paid for it: a
+ * five-minute brunch was treated as running to 10:53, so layout believed it
+ * collided with a class starting at 10:43 and cascaded the two — drawing an
+ * overlap the timetable does not have.
+ *
+ * Staying clickable is a rendering concern and is handled where it belongs, by
+ * BLOCK_MIN_H in BlockCard, capped by `availMin` so a block can never grow past
+ * the start of the next one.
+ */
+const span = (o: Occurrence) => ({ s: o.startMin, e: o.endMin })
 
 const isEvent = (o: Occurrence) => o.series.kind === 'event'
 
@@ -155,7 +178,7 @@ export function layoutDay(all: Occurrence[], pxPerMin = 1): Placed[] {
     const top = (o.startMin - DAY_START_MIN) * pxPerMin
     const pinOffset = top < lastBottom ? lastBottom - top : 0
     lastBottom = top + pinOffset + PIN_H + 2
-    return { occ: o, left: 0, width: 1, cols: 1, rider: false, stacked: 0, pinOffset }
+    return { occ: o, left: 0, width: 1, cols: 1, rider: false, stacked: 0, pinOffset, availMin: Infinity }
   })
   if (occs.length === 0) return pinned
 
@@ -221,5 +244,23 @@ export function layoutDay(all: Occurrence[], pxPerMin = 1): Placed[] {
     }
   }
 
-  return [...out, ...pinned]
+  // How much room each block actually has before the next one starts. Only
+  // meaningful for blocks that own their lane: a rider or a cascaded block is
+  // *deliberately* laid over its neighbour, so capping it there would fight
+  // the thing that layout just decided to do.
+  const withRoom = out.map((p) => {
+    if (p.rider || p.stacked > 0) return { ...p, availMin: Infinity }
+    let next = Infinity
+    for (const q of out) {
+      if (q.occ.key === p.occ.key || q.rider || q.stacked > 0) continue
+      // Same lane only — blocks side by side in split columns do not constrain
+      // each other vertically.
+      const sameLane = !(q.left >= p.left + p.width || q.left + q.width <= p.left)
+      if (!sameLane) continue
+      if (q.occ.startMin > p.occ.startMin && q.occ.startMin < next) next = q.occ.startMin
+    }
+    return { ...p, availMin: next === Infinity ? Infinity : next - p.occ.startMin }
+  })
+
+  return [...withRoom, ...pinned]
 }

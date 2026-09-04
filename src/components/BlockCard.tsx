@@ -81,11 +81,20 @@ export function BlockCard({
   // A pin is a line, so it has a height of its own rather than one earned from
   // its duration — which is zero.
   const openMin = isFlex && occ.state === 'needs-outcome' ? BLOCK_OPEN_FLEX_H : BLOCK_OPEN_H
+  // A short block grows to a readable minimum, but never past the moment the
+  // next one starts — otherwise the calendar draws an overlap the times do not
+  // have. A 5-minute brunch is 9px at default density and the 27px floor pushed
+  // it 5px into the class after it. Opened blocks are exempt: you asked for
+  // that one to be big, and it is temporary.
+  const roomPx =
+    placed.availMin === undefined || placed.availMin === Infinity
+      ? Infinity
+      : placed.availMin * pxPerMin
   const height = occ.pin
     ? PIN_H
     : active
       ? Math.max(naturalH, openMin)
-      : Math.max(naturalH, BLOCK_MIN_H)
+      : Math.max(naturalH, Math.min(BLOCK_MIN_H, roomPx))
   // Hovering lets a block grow past its time slot to show the rest of a note.
   // Blocks whose text already fits don't move at all, so this never jitters.
   // Same rule as the hover rail: only a commitment that isn't already riding on
