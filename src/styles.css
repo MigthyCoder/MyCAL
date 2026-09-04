@@ -99,6 +99,16 @@
   --line-mid: rgba(255, 255, 255, 0.10);
   --line-strong: rgba(255, 255, 255, 0.18);
 
+  /* Grid rules are their own pair. A hairline on a panel is not the same job as
+     a border on a control: it has to survive being 1px tall across a wide, busy
+     surface, so it needs more contrast than --line to be seen at all, and it
+     must not inherit whatever --line does for the rest of the sheet.
+     Measured against --panel: hour 1.90:1, half 1.42:1. Both sit inside the
+     1.5-2.5 band for a non-text hairline (half deliberately just under), which
+     is visible without turning the week into graph paper. */
+  --grid-line: rgba(255, 255, 255, 0.21);
+  --grid-line-half: rgba(255, 255, 255, 0.13);
+
   /* --- text, primary to tertiary --- */
   --text: #eceef4;
   --text-2: #a7abb8;
@@ -171,6 +181,13 @@
   --line: rgba(0, 0, 0, 0.07);
   --line-mid: rgba(0, 0, 0, 0.12);
   --line-strong: rgba(0, 0, 0, 0.22);
+
+  /* Not the dark alphas mirrored: black on #fff darkens faster than white
+     lightens #0e1015, so matching the *measured* ratio takes different numbers.
+     These land at hour 1.89:1 and half 1.42:1 on --panel — within 0.01 of dark,
+     so the grid carries the same weight in both appearances. */
+  --grid-line: rgba(0, 0, 0, 0.26);
+  --grid-line-half: rgba(0, 0, 0, 0.15);
 
   --text: #16171a;
   --text-2: #4a4d55;
@@ -450,10 +467,13 @@ input:not([data-slot]), textarea, select { font: inherit; color: inherit; }
   position: absolute;
   left: 0; right: 0;
   height: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--grid-line);
   pointer-events: none;
 }
-.hline.half { border-top-style: dotted; border-top-color: var(--wash-1); }
+/* Solid, not dotted. A dotted 1px rule only inks about half its pixels, so it
+   reads far fainter than its colour measures — which makes the contrast number
+   a lie. Keeping both weights solid lets colour alone carry the hierarchy. */
+.hline.half { border-top-style: solid; border-top-color: var(--grid-line-half); }
 
 /* the part of the day that's already gone */
 .pastveil {
@@ -1898,11 +1918,13 @@ button.tasktext:hover { background: var(--raised); }
 .chipday { border-radius: var(--r-md); }
 
 /* The grid drew three weights of line — solid, dotted half-hour, and column
-   rules — all competing with the blocks. Half-hour lines step back to a hint
-   you can still follow when dragging, and the hour lines carry the structure. */
-.hline { border-top-color: var(--line); }
-.hline.half { border-top-color: transparent; border-top-style: solid; }
-.scroll:hover .hline.half { border-top-color: var(--line); }
+   rules — all competing with the blocks. Quieting them went too far: at
+   --line the hour rule measured 1.13:1 in dark and 1.17:1 in light, and the
+   half-hour was transparent until you hovered the scroller, so the grid had no
+   structure at rest. Both are permanent now, and the hierarchy is a real
+   contrast step (1.90:1 vs 1.42:1) rather than present-vs-absent. */
+.hline { border-top-color: var(--grid-line); }
+.hline.half { border-top-color: var(--grid-line-half); border-top-style: solid; }
 
 /* One elevation story: panels sit on the page with a hairline, and nothing
    else needs a shadow to say it is a surface. */
@@ -2242,17 +2264,81 @@ button.tasktext:hover { background: var(--raised); }
   letter-spacing: 0.01em;
 }
 
-/* Hour lines carry the structure; the half-hour is a hint that only appears
-   when you are working in the grid. */
-.hline { border-top-color: var(--line); }
-.hline.half { border-top-color: transparent; }
-.scroll:hover .hline.half { border-top-color: var(--line); }
+/* Hour lines carry the structure; the half-hour is the same rule at about
+   three-quarters the weight, so you read it as a subdivision without counting.
+   Neither depends on hover — a grid you can only see while pointing at it is
+   not a grid. */
+.hline { border-top-color: var(--grid-line); }
+.hline.half { border-top-color: var(--grid-line-half); }
 
-/* Column rules are the quietest thing on the grid — they separate days, they
-   are not content. */
-.col { border-right-color: var(--line); }
-.dayhead .cell { border-right-color: var(--line); }
+/* Column rules separate days, so they are structure like the hour lines are —
+   just the lighter of the two weights. Left at --line they measured 1.13:1
+   while the horizontals sat at 1.90, and the grid read lopsided: you could
+   follow the rows but the day boundaries had almost vanished. Matched to the
+   half-hour weight, which is the quietest thing that is still a line. */
+.col { border-right-color: var(--grid-line-half); }
+.dayhead .cell { border-right-color: var(--grid-line-half); }
 
 @media (max-width: 760px) {
   :root { --gutter: 44px; }   /* GUTTER_W_MOBILE */
+}
+
+/* ============================================== block details on hover */
+
+.blockdetail {
+  width: 268px;
+  padding: 11px 12px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.28);
+}
+
+.bd-head { display: flex; align-items: baseline; gap: 7px; }
+.bd-dot {
+  flex: none;
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  background: hsl(var(--h) var(--blk-dot-s) var(--blk-dot-l));
+}
+.bd-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+
+.bd-when {
+  display: flex; align-items: baseline; gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.bd-dur { color: var(--text-3); }
+.bd-date { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+
+.bd-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.bd-room { font-size: 11.5px; color: var(--text-2); }
+.bd-state { height: 17px; padding: 0 6px; font-size: 10px; letter-spacing: 0.05em; }
+
+.bd-notes { margin-top: 9px; display: flex; flex-direction: column; gap: 5px; }
+.bd-note {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+.bd-marker { height: 15px; padding: 0 5px; font-size: 9px; letter-spacing: 0.07em; }
+.bd-k {
+  flex: none;
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.bd-did { margin-top: 7px; }
+
+.bd-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--text-3);
 }
