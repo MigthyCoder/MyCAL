@@ -1,62 +1,57 @@
-import { useEffect, useRef, useState } from 'react'
 import type { Placed } from '../lib/layout'
-import type { MarkerType } from '../lib/types'
-import { CATEGORY_META, FLEX_OPTIONS } from '../lib/seed'
+import type { DayNote, MarkerType } from '../lib/types'
+import { CATEGORY_META } from '../lib/seed'
 import { DAY_START_MIN, fmtRange, fmtTime, parseKey } from '../lib/time'
-import { clearOutcome, setOutcome, setQuickNote, patchOverride } from '../lib/store'
+import { clearOutcome, setNoteDone, setOutcome } from '../lib/store'
 
 /** Width the hover rail claims, in px. The block slides left by this much so
  *  there's somewhere to click to add something beside it. */
-/** Which part of a Flex a line belongs to, so the plan and the answer don't read
- *  as one undifferentiated block of text. */
-function flexLineClass(line: string): string {
-  if (line.startsWith('Did:')) return 'did'
-  if (line === 'Planned') return 'planlabel'
-  if (/^\d+\./.test(line)) return 'planitem'
-  return 'plan'
-}
-
 export const RAIL_W = 34
 /** How much of the host block stays visible down the left of a rider. */
 export const SLIVER = 18
 /** And how much of the block underneath a cascaded one stays visible. */
 export const CASCADE_INSET = 16
 
+export type DragMode = 'move' | 'resize-top' | 'resize-bottom'
+
 interface Props {
   placed: Placed
   pxPerMin: number
-  active: boolean
   /** Pointer is over this block. Drives grow-to-fit only — the add-alongside
    *  rail lays over the block rather than moving it. */
   hovered: boolean
   onHover: (over: boolean, e: React.MouseEvent) => void
-  onActivate: () => void
-  onDismiss: () => void
-  onOpenInspector: () => void
-  onAskReschedule: () => void
-  onAddAlongside: () => void
-  onDragStart: (e: React.MouseEvent, mode: 'move' | 'resize-top' | 'resize-bottom') => void
+  /** A tap or click is always "show me everything about this". */
+  onOpen: () => void
+  onDragStart: (e: React.MouseEvent, mode: DragMode) => void
   /** Held down and picked up on a touch screen. */
   lifted: boolean
   onPressStart: (e: React.TouchEvent) => void
-  onPressCancel: () => void
+  onPressMove: (e: React.TouchEvent) => void
+  onPressEnd: (e: React.TouchEvent) => void
+  /** Finger went down on the top or bottom edge — the phone's resize handle. */
+  onTouchResize: (e: React.TouchEvent, edge: 'top' | 'bottom') => void
+  /** True while you're choosing a landing spot for something you're moving, and
+   *  this block is a school period the work could go INTO. */
+  dropInto?: boolean
+  /** Text is bigger on a phone, so fewer lines fit in the same minutes. */
+  isMobile: boolean
 }
 
 export function BlockCard({
   placed,
   pxPerMin,
-  active,
   hovered,
   onHover,
-  onActivate,
-  onDismiss,
-  onOpenInspector,
-  onAskReschedule,
-  onAddAlongside,
+  onOpen,
   onDragStart,
   lifted,
   onPressStart,
-  onPressCancel,
+  onPressMove,
+  onPressEnd,
+  onTouchResize,
+  dropInto,
+  isMobile,
 }: Props) {
   const { occ, left, width } = placed
   const hue = CATEGORY_META[occ.series.category].hue
@@ -64,70 +59,15 @@ export function BlockCard({
   const naturalH = duration * pxPerMin
   const isFlex = occ.series.schoolRole === 'flex'
 
-  // The Flex quick-picks wrap to two rows in a narrow column, so an open Flex
-  // block needs more room than an open note block.
   // A pin is a line, so it has a height of its own rather than one earned from
   // its duration — which is zero.
   const PIN_H = 26
-  const openMin = isFlex && occ.state === 'needs-outcome' ? 156 : 104
-  const height = occ.pin
-    ? PIN_H
-    : active
-      ? Math.max(naturalH, openMin)
-      : Math.max(naturalH, 18)
+  const height = occ.pin ? PIN_H : Math.max(naturalH, 18)
   // Hovering lets a block grow past its time slot to show the rest of a note.
   // Blocks whose text already fits don't move at all, so this never jitters.
   // Same rule as the hover rail: only a commitment that isn't already riding on
   // something can take one of its own.
-  const canHostRider = !occ.generated && occ.series.kind === 'event' && !placed.rider
   const top = (occ.startMin - DAY_START_MIN) * pxPerMin + (placed.pinOffset ?? 0)
-
-  const [draft, setDraft] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (!active) return
-    // Seed from what YOU wrote for this day, never from the series default —
-    // otherwise you'd have to clear "Open" before typing every single time.
-    const seed = isFlex
-      ? occ.state !== 'future' && occ.state !== 'now'
-        ? (occ.did ?? '')
-        : (occ.notes[0]?.text ?? '')
-      : (occ.notes.find((n) => !n.marker)?.text ?? '')
-    setDraft(seed)
-    const el = inputRef.current
-    if (el) { el.focus(); el.select() }
-    const t = setTimeout(() => inputRef.current?.focus(), 50)
-    return () => clearTimeout(t)
-  }, [active, occ.key])
-
-  // Before it happens you're planning; after it happens you're reporting.
-  const reporting = isFlex && occ.state !== 'future' && occ.state !== 'now'
-
-  const commit = () => {
-    if (isFlex) {
-      const val = draft.trim()
-      if (reporting) {
-        patchOverride(occ.series.id, occ.date, {
-          did: val || undefined,
-          // Saying what you did IS the outcome — no second confirmation step.
-          ...(val ? { outcome: 'finished' as const } : {}),
-        })
-      } else {
-        // Editing the plan from the block touches the top item only.
-        setQuickNote(occ, val)
-      }
-    } else {
-      setQuickNote(occ, draft)
-    }
-    onDismiss()
-  }
-
-  const logFlex = (option: string) => {
-    if (option === 'Other') { inputRef.current?.focus(); return }
-    patchOverride(occ.series.id, occ.date, { did: option, outcome: 'finished' })
-    onDismiss()
-  }
 
   const stateClass =
     occ.state === 'needs-outcome'
@@ -144,24 +84,21 @@ export function BlockCard({
                 ? 'past'
                 : ''
 
+  // Work parked inside this block reads as a checklist; everything else is a
+  // note. They're the same shape in storage, but only one of them owes an answer.
+  const plan = occ.notes.filter((n) => n.task)
+  const plain = occ.notes.filter((n) => !n.task)
+
   // What the subtitle says depends on where the block is in its lifecycle. Flex
   // keeps BOTH lines once it has both — the gap between what you meant to do and
   // what you did is the entire point of writing them down.
   const subLines: string[] = []
-  if (isFlex) {
-    // Always labelled. A bare numbered list loses the thing that makes a Flex
-    // worth reading — that this was the intent, and that below it is the answer.
-    if (occ.notes.length === 1) {
-      subLines.push(`Planned: ${occ.notes[0].text}`)
-    } else if (occ.notes.length > 1) {
-      subLines.push('Planned')
-      occ.notes.forEach((n, i) => subLines.push(`${i + 1}. ${n.text}`))
-    }
+  if (!isFlex) {
+    if (plain.length > 0) for (const n of plain) subLines.push(n.text)
+    else if (plan.length === 0 && occ.fallbackSubtitle) subLines.push(occ.fallbackSubtitle)
+  } else {
+    for (const n of plain) subLines.push(n.text)
     if (occ.did) subLines.push(`Did: ${occ.did}`)
-  } else if (occ.notes.length > 0) {
-    for (const n of occ.notes) subLines.push(n.text)
-  } else if (occ.fallbackSubtitle) {
-    subLines.push(occ.fallbackSubtitle)
   }
 
   // One chip per KIND of thing, not one chip and a count of everything else — a
@@ -171,7 +108,6 @@ export function BlockCard({
   const tally = new Map<MarkerType, number>()
   for (const n of occ.notes) if (n.marker) tally.set(n.marker, (tally.get(n.marker) ?? 0) + 1)
   const chips = ORDER.filter((t) => tally.has(t)).map((t) => ({ type: t, n: tally.get(t)! }))
-  const subLine = subLines[0]
 
   const movedTail =
     occ.state === 'rescheduled' && occ.movedTo
@@ -179,14 +115,15 @@ export function BlockCard({
       : null
   const tail = movedTail ?? fmtRange(occ.startMin, occ.endMin)
 
-  // Only a block with note text can overflow its slot, so only those grow. A
-  // bare block like Streetplay stays completely still when you pass over it.
-  const grow = hovered && !active && Boolean(subLine)
+  const hasBody = subLines.length > 0 || plan.length > 0
+  // Only a block with something written in it can overflow its slot, so only
+  // those grow. A bare block like Streetplay stays completely still.
+  const grow = hovered && hasBody
 
   // A block only stacks title-over-note when there's room for both lines.
   // Below that it puts them on one line; below that, title only.
-  const compact = height < 30 && !active
-  const tight = !active && !compact && height < 46
+  const compact = height < 30
+  const tight = !compact && height < 46
   // The clock is redundant — you can read the time off the grid — so a note
   // always outranks it for the space.
   // Something cascaded on top of this block will cover its lower half, and half
@@ -195,8 +132,59 @@ export function BlockCard({
   const inset =
     (placed.rider ? SLIVER : 0) +
     (placed.stacked > 1 ? (placed.stacked - 1) * CASCADE_INSET : 0)
-  const showWhen =
-    !active && !tight && !covered && height >= 58 && (height >= 84 || subLines.length === 0)
+  // The clock is the first thing to go. You can read the time off the grid; you
+  // cannot read the homework you parked in here off anything else.
+  const showWhen = !tight && !covered && height >= 58 && (!hasBody || height >= 112)
+
+  const tick = (n: DayNote) => (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setNoteDone(occ, n.id, n.done ? undefined : 'finished')
+  }
+
+  // Half a row of text looks broken, so work out how many actually fit and say
+  // out loud that the rest are there. A Flex is 52 minutes; a plan can be six
+  // items long. When it's tight the "Planned" label is the first thing dropped —
+  // the numbers already say it's a list in order.
+  const ROW = isMobile ? 20 : 17
+  const LAB = isMobile ? 14 : 12
+  const MORE = isMobile ? 16 : 14
+  const room =
+    height -
+    12 - // padding
+    (isMobile ? 17 : 16) - // title
+    2 - // the plan's own top margin
+    (chips.length ? 19 : 0) -
+    subLines.length * (isMobile ? 17 : 15) -
+    (showWhen ? 15 : 0)
+  // n rows cost n*ROW minus the gap the last one doesn't have. The label is the
+  // first thing given up, then whole items.
+  const need = plan.length * ROW - 1
+  const showLab = isFlex && need <= room - LAB
+  const allFit = need <= room
+  const shownPlan = allFit ? plan : plan.slice(0, Math.max(Math.floor((room - MORE + 1) / ROW), 0))
+  const hidden = plan.length - shownPlan.length
+
+  const planRows = plan.length > 0 && !compact && !tight && (
+    <div className="plan">
+      {showLab && <div className="planlab">Planned</div>}
+      {shownPlan.map((n, i) => (
+        <div className={`todo ${n.done ?? ''}`} key={n.id}>
+          <button
+            className="tick"
+            title={n.done ? 'Not done after all' : 'Mark done'}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={tick(n)}
+          >
+            {n.done ? '✓' : isFlex ? i + 1 : ''}
+          </button>
+          <span>{n.text}</span>
+        </div>
+      ))}
+      {hidden > 0 && <div className="planmore">+{hidden} more</div>}
+    </div>
+  )
 
   return (
     <div
@@ -204,7 +192,7 @@ export function BlockCard({
         occ.series.schoolRole ? 'sch' : ''
       } ${grow ? 'grown' : ''} ${placed.rider ? 'rider' : ''} ${
         placed.stacked ? 'stacked' : ''
-      } ${lifted ? 'lifted' : ''} ${occ.pin ? 'pin' : ''}`}
+      } ${lifted ? 'lifted' : ''} ${occ.pin ? 'pin' : ''} ${dropInto ? 'dropinto' : ''}`}
       style={{
         // @ts-expect-error custom property
         '--h': hue,
@@ -216,13 +204,11 @@ export function BlockCard({
         // than a percentage, so the block keeps essentially its whole width.
         left: `calc(${left * 100}% + ${3 + inset}px)`,
         width: `calc(${width * 100}% - ${6 + inset}px)`,
-        // base 2+layer · grown base 6 · rail 7 · rider 8+layer · grown rider 12 ·
-        // open 20. A host never rises above its riders, and a cascaded block
-        // always sits above the one it covers.
+        // base 2+layer · grown base 6 · rail 7 · rider 8+layer · grown rider 12.
+        // A host never rises above its riders, and a cascaded block always sits
+        // above the one it covers.
         zIndex: lifted
           ? 30
-          : active
-          ? 20
           : placed.rider
             ? grow
               ? 12
@@ -234,26 +220,31 @@ export function BlockCard({
       onMouseEnter={(e) => onHover(true, e)}
       onMouseLeave={(e) => onHover(false, e)}
       onTouchStart={onPressStart}
-      onTouchMove={onPressCancel}
-      onTouchEnd={onPressCancel}
+      onTouchMove={onPressMove}
+      onTouchEnd={onPressEnd}
+      onTouchCancel={onPressEnd}
       onMouseDown={(e) => {
-        if (active || occ.generated) return
+        if (occ.generated) return
         onDragStart(e, 'move')
       }}
       onClick={(e) => {
         e.stopPropagation()
-        if (occ.pin) { onOpenInspector(); return }
-        if (!active) onActivate()
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation()
-        onOpenInspector()
+        onOpen()
       }}
     >
-      {!active && !occ.generated && (
+      {!occ.generated && (
         <>
-          <div className="grabber top" onMouseDown={(e) => { e.stopPropagation(); onDragStart(e, 'resize-top') }} />
-          <div className="grabber bottom" onMouseDown={(e) => { e.stopPropagation(); onDragStart(e, 'resize-bottom') }} />
+          {/* Fat enough for a fingertip on a phone, invisible on a desktop. */}
+          <div
+            className="grabber top"
+            onMouseDown={(e) => { e.stopPropagation(); onDragStart(e, 'resize-top') }}
+            onTouchStart={(e) => onTouchResize(e, 'top')}
+          />
+          <div
+            className="grabber bottom"
+            onMouseDown={(e) => { e.stopPropagation(); onDragStart(e, 'resize-bottom') }}
+            onTouchStart={(e) => onTouchResize(e, 'bottom')}
+          />
         </>
       )}
 
@@ -286,130 +277,64 @@ export function BlockCard({
         </>
       )}
 
-      {occ.overlapReason && !compact && !tight && <div className="why">{occ.overlapReason}</div>}
-
-      {!occ.pin && (
-      <div className="title">
-        <span className="tname">{occ.title}</span>
-        {/* The chip lives on the title line — on its own row it pushes the note
-            out of any block shorter than an hour. */}
-
-        {/* Where a moved block went is the whole point of leaving it behind, so
-            it shows even when the block is too short for a second line. */}
-        {movedTail && !active ? (
-          <span className="inlinesub moved">{movedTail}</span>
-        ) : (
-          tight && subLines.length > 0 && (
-            <span className="inlinesub">{subLines[subLines.length - 1]}</span>
-          )
-        )}
-      </div>
-      )}
-
-      {chips.length > 0 && !compact && !tight && (
-        <div className="markers">
-          {chips.map((c) => (
-            <span className={`marker ${c.type}`} key={c.type}>
-              {c.type === 'presentation' ? 'PRESENT' : c.type.toUpperCase()}
-              {c.n > 1 ? ` (${c.n})` : ''}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {active && !occ.pin ? (
-        <div style={{ marginTop: 4 }} onMouseDown={(e) => e.stopPropagation()}>
-          <input
-            ref={inputRef}
-            autoFocus
-            className="field blocknote"
-            value={draft}
-            placeholder={
-              isFlex
-                ? reporting
-                  ? 'What did you actually do?'
-                  : 'Plan for this flex…'
-                : occ.fallbackSubtitle || 'Add a note for this day…'
-            }
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); commit() }
-              if (e.key === 'Escape') { e.preventDefault(); onDismiss() }
-            }}
-            onBlur={commit}
-          />
-          <div className="row wrap" style={{ marginTop: 5, gap: 4 }}>
-            {occ.state === 'needs-outcome' && isFlex && (
-              <>
-                {/* If you wrote a plan, the commonest honest answer is that you
-                    followed it — and it records WHAT, not just "as planned". */}
-                {occ.notes.length > 0 && (
-                  <button
-                    className="btn sm ghost plandone"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() =>
-                      logFlex(occ.notes.map((n) => n.text.trim()).filter(Boolean).join(', '))
-                    }
-                  >
-                    ✓ The plan
-                  </button>
-                )}
-                {FLEX_OPTIONS.map((o) => (
-                  <button
-                    key={o}
-                    className="btn sm ghost"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => logFlex(o)}
-                  >
-                    {o}
-                  </button>
-                ))}
-              </>
-            )}
-            {occ.state === 'needs-outcome' && !isFlex && (
-              <>
-                <button className="btn sm ghost" onMouseDown={(e) => e.preventDefault()} onClick={() => { setOutcome(occ, 'finished'); onDismiss() }}>Done</button>
-                <button className="btn sm ghost" onMouseDown={(e) => e.preventDefault()} onClick={onAskReschedule}>Move</button>
-                <button className="btn sm ghost" onMouseDown={(e) => e.preventDefault()} onClick={() => { setOutcome(occ, 'dropped'); onDismiss() }}>Drop</button>
-              </>
-            )}
-            {canHostRider && (
-              <button
-                className="btn sm"
-                style={{ marginLeft: 'auto' }}
-                title="Add something alongside this block"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={onAddAlongside}
-              >
-                ＋
-              </button>
-            )}
-            <button
-              className="btn sm"
-              style={canHostRider ? undefined : { marginLeft: 'auto' }}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={onOpenInspector}
-            >
-              ⋯
-            </button>
-          </div>
-        </div>
-      ) : occ.pin ? null : (
+      {occ.pin ? null : (
         <>
+          {occ.overlapReason && !compact && !tight && <div className="why">{occ.overlapReason}</div>}
+
+          <div className="title">
+            <span className="tname">{occ.title}</span>
+            {/* Where a moved block went is the whole point of leaving it behind,
+                so it shows even when the block is too short for a second line. */}
+            {movedTail ? (
+              <span className="inlinesub moved">{movedTail}</span>
+            ) : (
+              tight &&
+              subLines.length > 0 && (
+                <span className="inlinesub">{subLines[subLines.length - 1]}</span>
+              )
+            )}
+            {tight && plan.length > 0 && !movedTail && (
+              <span className="inlinesub">{plan.length} planned</span>
+            )}
+          </div>
+
+          {chips.length > 0 && !compact && !tight && (
+            <div className="markers">
+              {chips.map((c) => (
+                <span className={`marker ${c.type}`} key={c.type}>
+                  {c.type === 'presentation' ? 'PRESENT' : c.type.toUpperCase()}
+                  {c.n > 1 ? ` (${c.n})` : ''}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {planRows}
+
           {!compact &&
             !tight &&
-            (occ.notes.length > 0 && !isFlex
-              ? occ.notes.map((n) => (
-                  <div className={`sub ${n.marker ? `flag ${n.marker}` : ''}`} key={n.id}>
-                    {n.text}
-                  </div>
-                ))
-              : subLines.map((line, i) => (
-                  <div className={`sub ${isFlex ? flexLineClass(line) : ''}`} key={i}>
+            (isFlex
+              ? subLines.map((line, i) => (
+                  <div className={`sub ${line.startsWith('Did:') ? 'did' : ''}`} key={i}>
                     {line}
                   </div>
-                )))}
-          {occ.state === 'needs-outcome' && !compact && !tight && (
+                ))
+              : plain.length > 0
+                ? plain.map((n) => (
+                    <div className={`sub ${n.marker ? `flag ${n.marker}` : ''}`} key={n.id}>
+                      {n.text}
+                    </div>
+                  ))
+                : subLines.map((line, i) => (
+                    <div className="sub" key={i}>
+                      {line}
+                    </div>
+                  )))}
+
+          {/* A block with a checklist in it already says what it's waiting for,
+              and the border is already orange. The banner is for the ones that
+              would otherwise look finished. */}
+          {occ.state === 'needs-outcome' && !compact && !tight && plan.length === 0 && (
             <div className="needsflag">Needs outcome</div>
           )}
           {showWhen && <div className="when">{tail}</div>}

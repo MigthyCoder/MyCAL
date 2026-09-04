@@ -15,17 +15,19 @@ import {
 import { fmtRange, fmtTime, parseKey } from '../lib/time'
 import { CategoryPicker, DayPicker, Seg, Sheet, TimeField } from './ui'
 import { FLEX_OPTIONS } from '../lib/seed'
-import { newNote, setDayNotes } from '../lib/store'
+import { newNote, newPlanItem, setDayNotes } from '../lib/store'
 import type { DayNote } from '../lib/types'
 
 export function Inspector({
   occ,
   onClose,
   onAskReschedule,
+  onAddAlongside,
 }: {
   occ: Occurrence
   onClose: () => void
   onAskReschedule: () => void
+  onAddAlongside: () => void
 }) {
   const s = occ.series
   const isFlex = s.schoolRole === 'flex'
@@ -130,8 +132,22 @@ export function Inspector({
           <h4>Planned — in the order you'll do them</h4>
           <div className="notelist">
             {notes.map((n, i) => (
-              <div className="noterow plan" key={n.id}>
-                <span className="rank">{i + 1}</span>
+              <div className={`noterow plan ${n.done ?? ''}`} key={n.id}>
+                {/* The number IS the checkbox. Ticking it off is the commonest
+                    thing you do to a plan, so it gets the biggest target. */}
+                <button
+                  className="rank"
+                  title={n.done ? 'Not done after all' : 'Mark done'}
+                  onClick={() =>
+                    setNotes((ns) =>
+                      ns.map((x, j) =>
+                        j === i ? { ...x, task: true, done: x.done ? undefined : 'finished' } : x,
+                      ),
+                    )
+                  }
+                >
+                  {n.done ? '✓' : i + 1}
+                </button>
                 <input
                   className="field"
                   value={n.text}
@@ -140,7 +156,7 @@ export function Inspector({
                     setNotes((ns) => ns.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))
                   }
                   placeholder="Calc homework"
-                  onKeyDown={(e) => { if (e.key === 'Enter') setNotes((ns) => [...ns, newNote()]) }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') setNotes((ns) => [...ns, newPlanItem('')]) }}
                 />
                 <button
                   className="rowx"
@@ -173,14 +189,14 @@ export function Inspector({
                 <button
                   className="rowx"
                   title="Remove"
-                  onClick={() => setNotes((ns) => (ns.length === 1 ? [newNote()] : ns.filter((_, j) => j !== i)))}
+                  onClick={() => setNotes((ns) => (ns.length === 1 ? [newPlanItem('')] : ns.filter((_, j) => j !== i)))}
                 >
                   ×
                 </button>
               </div>
             ))}
           </div>
-          <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => setNotes((ns) => [...ns, newNote()])}>
+          <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => setNotes((ns) => [...ns, newPlanItem('')])}>
             + Another
           </button>
           <h4>Did</h4>
@@ -203,24 +219,48 @@ export function Inspector({
         </>
       ) : (
         <>
-          <h4>On this day</h4>
+          <h4>{occ.notes.some((n) => n.task) ? 'On this day — and what you\u2019re doing in it' : 'On this day'}</h4>
           <div className="notelist">
             {notes.map((n, i) => (
-              <div className="noterow" key={n.id}>
+              <div className={`noterow ${n.task ? 'istask' : ''} ${n.done ?? ''}`} key={n.id}>
+                {/* A to-do inside a block is a note that owes you an answer. It's
+                    the same row, one dropdown along. */}
+                {n.task && (
+                  <button
+                    className="rank"
+                    title={n.done ? 'Not done after all' : 'Mark done'}
+                    onClick={() =>
+                      setNotes((ns) =>
+                        ns.map((x, j) => (j === i ? { ...x, done: x.done ? undefined : 'finished' } : x)),
+                      )
+                    }
+                  >
+                    {n.done ? '✓' : ''}
+                  </button>
+                )}
                 <select
                   className="field notekind"
-                  value={n.marker ?? ''}
-                  onChange={(e) =>
+                  value={n.task ? 'task' : (n.marker ?? '')}
+                  onChange={(e) => {
+                    const v = e.target.value
                     setNotes((ns) =>
                       ns.map((x, j) =>
                         j === i
-                          ? { ...x, marker: (e.target.value || undefined) as MarkerType | undefined }
+                          ? v === 'task'
+                            ? { ...x, task: true, marker: undefined }
+                            : {
+                                ...x,
+                                task: undefined,
+                                done: undefined,
+                                marker: (v || undefined) as MarkerType | undefined,
+                              }
                           : x,
                       ),
                     )
-                  }
+                  }}
                 >
                   <option value="">Note</option>
+                  <option value="task">To-do</option>
                   <option value="test">Test</option>
                   <option value="quiz">Quiz</option>
                   <option value="due">Due</option>
@@ -364,6 +404,11 @@ export function Inspector({
         {!occ.generated && (
           <button className="btn ghost" onClick={() => { persist(); duplicateOccurrence(occ); onClose() }}>
             Duplicate
+          </button>
+        )}
+        {!occ.generated && !occ.pin && (
+          <button className="btn ghost" onClick={() => { persist(); onAddAlongside() }}>
+            Add alongside
           </button>
         )}
         {/* Skipping only means something for a thing that comes back. For a

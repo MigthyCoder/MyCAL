@@ -9,7 +9,16 @@ import { WeekStrip } from './components/WeekStrip'
 import { SyncButton, SyncSheet } from './components/SyncSheet'
 import { MOBILE, useMedia } from './lib/useMedia'
 import { buildOccurrences, openLoops, type Occurrence } from './lib/occurrences'
-import { DENSITY_STEPS, setDensity, useDB } from './lib/store'
+import {
+  DENSITY_STEPS,
+  clearOutcome,
+  deleteSeries,
+  reschedule,
+  rescheduleIntoPeriod,
+  setDayNotes,
+  setDensity,
+  useDB,
+} from './lib/store'
 import { CATEGORIES, CATEGORY_META } from './lib/seed'
 import { addDays, dateKey, fmtMonthRange, fmtTime, isSameDay, parseKey, startOfWeek, weekDays } from './lib/time'
 
@@ -18,7 +27,6 @@ export default function App() {
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date()))
   const [now, setNow] = useState(() => new Date())
   const [focusedDay, setFocusedDay] = useState<number | null>(null)
-  const [activeKey, setActiveKey] = useState<string | null>(null)
   const [inspect, setInspect] = useState<Occurrence | null>(null)
   const [rescheduling, setRescheduling] = useState<Occurrence | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -30,6 +38,9 @@ export default function App() {
   // for the move you already started, instead of creating a new block.
   const [picking, setPicking] = useState<{ occ: Occurrence; draft: ReschedDraft } | null>(null)
   const [reschedInit, setReschedInit] = useState<ReschedDraft | null>(null)
+  // Moving something commits the moment you choose the spot — one tap, no
+  // confirmation sheet. This is what makes that safe.
+  const [toast, setToast] = useState<{ text: string; undo: () => void } | null>(null)
   const isMobile = useMedia(MOBILE)
   const [mobileDay, setMobileDay] = useState(() => {
     const d = new Date().getDay()
@@ -87,7 +98,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName?.match(/INPUT|TEXTAREA/)) return
-      if (e.key === 'Escape') { setActiveKey(null); setFocusedDay(null); setPicking(null) }
+      if (e.key === 'Escape') { setFocusedDay(null); setPicking(null) }
       if (e.key === 'ArrowLeft') jump(-1)
       if (e.key === 'ArrowRight') jump(1)
       if (e.key === 't' || e.key === 'T') goToday()
@@ -97,6 +108,37 @@ export default function App() {
   }, [])
 
   const empty = db.series.length === 0 && !db.school.enabled
+
+  /** Choosing the spot IS the confirmation. Nothing pops up afterwards asking
+   *  you whether you meant it — the undo bar is there if you didn't. */
+  const landAt = (occ: Occurrence, date: string, startMin: number, durationMin: number, why: string) => {
+    const copy = reschedule(occ, date, startMin, why, durationMin)
+    setPicking(null)
+    setRescheduling(null)
+    setReschedInit(null)
+    setToast({
+      text: `Moved to ${parseKey(date).toLocaleDateString(undefined, { weekday: 'short' })} ${fmtTime(startMin)}`,
+      undo: () => { deleteSeries(copy.id); clearOutcome(occ) },
+    })
+  }
+
+  const dropInto = (occ: Occurrence, target: Occurrence, why: string) => {
+    const before = target.notes
+    rescheduleIntoPeriod(occ, target, why)
+    setPicking(null)
+    setRescheduling(null)
+    setReschedInit(null)
+    setToast({
+      text: `Into ${target.title} · ${parseKey(target.date).toLocaleDateString(undefined, { weekday: 'short' })}`,
+      undo: () => { setDayNotes(target, before); clearOutcome(occ) },
+    })
+  }
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 6000)
+    return () => clearTimeout(t)
+  }, [toast])
 
   return (
     <div className="app">
@@ -155,9 +197,14 @@ export default function App() {
             className="btn solid"
             style={{ marginLeft: 6 }}
             onClick={() => {
-              const d = focusedDay !== null ? days[focusedDay] : now
+              // The day you're looking at, at the next half hour — on a phone
+              // that's almost always the one you meant.
+              const d = isMobile ? days[mobileDay] : focusedDay !== null ? days[focusedDay] : now
               const inWeek = days.some((x) => isSameDay(x, d))
-              setDraft({ date: dateKey(inWeek ? d : days[0]), startMin: 16 * 60, endMin: 17 * 60 })
+              const soon = isSameDay(d, now)
+                ? Math.min(Math.ceil((now.getHours() * 60 + now.getMinutes() + 10) / 30) * 30, 22 * 60)
+                : 16 * 60
+              setDraft({ date: dateKey(inWeek ? d : days[0]), startMin: soon, endMin: soon + 60 })
             }}
           >
             + Block
@@ -182,8 +229,11 @@ export default function App() {
 
       {picking && (
         <div className="picking">
-          <b>Pick a time for “{picking.occ.title}”</b>
-          <span>Drag anywhere on the grid — any day, any week.</span>
+          <b>Where does “{picking.occ.title}” go?</b>
+          <span>
+            Tap any open time — or tap a class, Flex or SUCCESS to do it during
+            that period.
+          </span>
           <button className="btn sm ghost" onClick={() => { setRescheduling(picking.occ); setReschedInit(picking.draft); setPicking(null) }}>
             Back
           </button>
@@ -241,20 +291,13 @@ export default function App() {
         occurrences={occurrences}
         focusedDay={focusedDay}
         onFocusDay={setFocusedDay}
-        activeKey={activeKey}
-        setActiveKey={setActiveKey}
         onOpenInspector={setInspect}
-        onAskReschedule={setRescheduling}
+        picking={Boolean(picking)}
+        onDropIntoPeriod={(target) => picking && dropInto(picking.occ, target, picking.draft.why)}
+        pickLen={picking?.draft.durationMin ?? 45}
         onCreate={(d) => {
           if (picking) {
-            setReschedInit({
-              date: d.date,
-              startMin: d.startMin,
-              durationMin: Math.max(d.endMin - d.startMin, 10),
-              why: picking.draft.why,
-            })
-            setRescheduling(picking.occ)
-            setPicking(null)
+            landAt(picking.occ, d.date, d.startMin, Math.max(d.endMin - d.startMin, 10), picking.draft.why)
             return
           }
           setDraft(d)
@@ -264,16 +307,27 @@ export default function App() {
 
       <div className="footer">
         <span>Drag empty time to add — or double-click it</span>
-        <span>Click a block to write on that day</span>
-        <span>Double-click for everything else</span>
+        <span>Click a block to open it</span>
+        <span>Drag its top or bottom edge to restretch it</span>
         <span>Click a date to expand it</span>
       </div>
+
+      {toast && (
+        <div className="toast">
+          <span>{toast.text}</span>
+          <button className="btn sm ghost" onClick={() => { toast.undo(); setToast(null) }}>Undo</button>
+        </div>
+      )}
 
       {inspect && (
         <Inspector
           occ={occurrences.find((o) => o.key === inspect.key) ?? inspect}
           onClose={() => setInspect(null)}
           onAskReschedule={() => { setRescheduling(inspect); setInspect(null) }}
+          onAddAlongside={() => {
+            setDraft({ date: inspect.date, startMin: inspect.startMin, endMin: inspect.endMin })
+            setInspect(null)
+          }}
         />
       )}
       {rescheduling && (
@@ -281,6 +335,10 @@ export default function App() {
           occ={rescheduling}
           initial={reschedInit}
           onClose={() => { setRescheduling(null); setReschedInit(null) }}
+          onLandAt={(date, startMin, durationMin, why) =>
+            landAt(rescheduling, date, startMin, durationMin, why)
+          }
+          onDropInto={(target, why) => dropInto(rescheduling, target, why)}
           onPickOnCalendar={(draft) => {
             setPicking({ occ: rescheduling, draft })
             setRescheduling(null)

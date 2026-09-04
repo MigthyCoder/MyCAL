@@ -42,6 +42,10 @@ export function requiresOutcome(s: Series): boolean {
   return s.kind === 'task' || s.schoolRole === 'flex'
 }
 
+/** Work you parked inside a period and haven't answered for yet. A class is an
+ *  event and never asks you for anything — until you put a task in it. */
+export const openPlanItems = (notes: DayNote[]) => notes.filter((n) => n.task && !n.done)
+
 function occursOn(s: Series, date: string, dow: number): boolean {
   if (date < s.anchorDate) return false
   if (!s.recurrence) return date === s.anchorDate
@@ -92,9 +96,11 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
 
     const startMin = ov?.startMin ?? baseStart
     const endMin = ov?.endMin ?? baseEnd
+    const notes = ov?.notes ?? []
     // MyCAL knows your whole school year, but it wasn't watching before you
     // started using it — nothing from back then gets to nag you.
-    const needs = requiresOutcome(series) && date >= db.startedOn
+    const needs =
+      (requiresOutcome(series) || openPlanItems(notes).length > 0) && date >= db.startedOn
 
     // Past/future is a full datetime comparison. Comparing only minutes would
     // mark next Tuesday's 8 AM class as already over.
@@ -114,7 +120,7 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
       series,
       date,
       title: ov?.title ?? series.title,
-      notes: ov?.notes ?? [],
+      notes,
       fallbackSubtitle: series.defaultSubtitle,
       startMin,
       endMin,

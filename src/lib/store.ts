@@ -215,26 +215,28 @@ export function setDayNotes(occ: Occurrence, notes: DayNote[]) {
   else patchOverride(occ.series.id, occ.date, { notes: cleaned })
 }
 
-/**
- * The one-tap jot from clicking a block. It only ever touches the first UNLABELLED
- * note, so quickly writing "ask about grade" can't overwrite the test you already
- * put on that day.
- */
-export function setQuickNote(occ: Occurrence, text: string) {
-  const t = text.trim()
-  const notes = [...occ.notes]
-  const i = notes.findIndex((n) => !n.marker)
-  if (i === -1) {
-    if (t) notes.push({ id: uid(), text: t })
-  } else if (t) {
-    notes[i] = { ...notes[i], text: t }
-  } else {
-    notes.splice(i, 1)
-  }
-  setDayNotes(occ, notes)
+export const newNote = (text = '', marker?: MarkerType): DayNote => ({ id: uid(), text, marker })
+
+/** A piece of work living inside a period rather than beside it. */
+export const newPlanItem = (text: string): DayNote => ({ id: uid(), text, task: true })
+
+/** Tick (or untick) one planned item inside a block. */
+export function setNoteDone(occ: Occurrence, noteId: string, done?: 'finished' | 'dropped') {
+  setDayNotes(
+    occ,
+    occ.notes.map((n) => (n.id === noteId ? { ...n, done } : n)),
+  )
 }
 
-export const newNote = (text = '', marker?: MarkerType): DayNote => ({ id: uid(), text, marker })
+/** Reorder a planned item — the priority list is the whole point of the plan. */
+export function moveNote(occ: Occurrence, noteId: string, dir: -1 | 1) {
+  const notes = [...occ.notes]
+  const i = notes.findIndex((n) => n.id === noteId)
+  const j = i + dir
+  if (i === -1 || j < 0 || j >= notes.length) return
+  ;[notes[i], notes[j]] = [notes[j], notes[i]]
+  setDayNotes(occ, notes)
+}
 
 /**
  * Rename. What that means depends on what you're renaming: a class is stored in
@@ -328,11 +330,12 @@ export function reschedule(
 }
 
 /**
- * Move a task into a free school period rather than on top of one.
+ * Move a task INTO a school period rather than on top of one.
  *
- * Flex is already the slot for doing your own work, so laying a block over it
- * says nothing and looks like a mistake. The task becomes what that Flex is
- * *for* — its plan — and the original block still records that it moved.
+ * You're already in that room for those 52 minutes — a second block laid over
+ * the top says nothing and looks like a mistake. The task becomes a line inside
+ * the period, in priority order, and the period now owes you an answer for it.
+ * Works for any period: Flex, SUCCESS, or a class you'll do it during.
  */
 export function rescheduleIntoPeriod(
   occ: Occurrence,
@@ -342,7 +345,7 @@ export function rescheduleIntoPeriod(
    *  usually already has work in it. */
   priority: 'first' | 'after' = 'after',
 ) {
-  const item = newNote(occ.title)
+  const item = newPlanItem(occ.title)
   const plan = priority === 'first' ? [item, ...target.notes] : [...target.notes, item]
   setDayNotes(target, plan)
   patchOverride(occ.series.id, occ.date, {

@@ -464,6 +464,9 @@ input, textarea, select { font: inherit; color: inherit; }
 
 /* --------------------------------------------------------------- inspector */
 
+/* Opening a block is now the single most frequent thing you do in MyCAL — a
+   tap, a hundred times a day. So the sheet doesn't appear, it arrives: the room
+   behind it dims and goes soft, and the card comes up off the surface. */
 .scrim {
   position: fixed;
   inset: 0;
@@ -474,6 +477,11 @@ input, textarea, select { font: inherit; color: inherit; }
   align-items: center;
   justify-content: center;
   padding: 24px;
+  animation: scrimin 0.2s ease-out;
+}
+@keyframes scrimin {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; }
 }
 .sheet {
   width: min(520px, 100%);
@@ -486,6 +494,20 @@ input, textarea, select { font: inherit; color: inherit; }
   padding: 20px;
 }
 .sheet.wide { width: min(760px, 100%); }
+.sheet {
+  /* Overshoots a touch and settles — the curve is the difference between a
+     dialog and something you picked up. */
+  animation: sheetin 0.34s cubic-bezier(0.16, 1.02, 0.3, 1);
+  transform-origin: 50% 40%;
+}
+@keyframes sheetin {
+  from { transform: translateY(14px) scale(0.965); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .scrim { animation: none; }
+}
 .sheet h3 { margin: 0 0 3px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
 .sheet .meta { font-size: 12.5px; color: var(--text-3); margin-bottom: 16px; font-variant-numeric: tabular-nums; }
 .sheet h4 {
@@ -958,14 +980,14 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   padding: 12px 11px;
 }
 
-.blocknote { padding: 5px 8px; font-size: 12px; }
+
 
 /* ============================================== feels-like-an-app, on a phone */
 
 @media (max-width: 760px) {
   /* iOS force-zooms the page whenever you focus an input smaller than 16px, and
      never zooms back out. That single rule is most of the "why did it jump". */
-  input, textarea, select, .field, .blocknote {
+  input, textarea, select, .field {
     font-size: 16px !important;
   }
   .codefield { font-size: 26px !important; }
@@ -1004,7 +1026,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
     max-height: 88vh;
     border-radius: 18px 18px 0 0;
     padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
-    animation: sheetup 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: sheetup 0.36s cubic-bezier(0.17, 0.89, 0.24, 1);
   }
   .sheet::before {
     content: '';
@@ -1015,9 +1037,11 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
     border-radius: 2px;
     background: var(--line-strong);
   }
+  /* Comes all the way up from the bottom edge, like every other sheet on the
+     phone — not a card that fades in near it. */
   @keyframes sheetup {
-    from { transform: translateY(18px); opacity: 0.6; }
-    to { transform: none; opacity: 1; }
+    from { transform: translateY(100%); }
+    to { transform: none; }
   }
 
   /* Thumb-sized targets. */
@@ -1305,14 +1329,7 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   .picking span { flex-basis: 100%; font-size: 12px; }
 }
 
-.noterow.plan { grid-template-columns: 22px 1fr 26px 26px 26px; }
-.noterow .rank {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-3);
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
+.noterow.plan { grid-template-columns: 28px 1fr 26px 26px 26px; }
 .rowx:disabled { opacity: 0.2; cursor: default; }
 .rowx:disabled:hover { background: none; color: var(--text-3); }
 .block .sub.plan { color: hsl(var(--h) 28% 78%); }
@@ -1333,3 +1350,225 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   margin-top: 1px;
 }
 .block .sub.planitem { padding-left: 8px; color: hsl(var(--h) 28% 80%); }
+
+/* ================================================= work parked inside a block
+
+   A class is an event: it never asks you for anything. Put homework in it and
+   the block starts owing you an answer, so the work has to READ as work — a row
+   with a box you can tick, not another grey subtitle. */
+
+.block .plan {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 2px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.block .planlab {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: hsl(var(--h) 26% 62%);
+}
+.block .todo {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+.block .todo > span {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: hsl(var(--h) 30% 84%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.block .tick {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin-top: 1px;
+  border-radius: 4px;
+  border: 1.5px solid hsl(var(--h) 55% 60%);
+  background: transparent;
+  cursor: pointer;
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: hsl(var(--h) 40% 78%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  transition: background .12s, transform .12s, border-color .12s;
+}
+.block .tick:hover { background: hsl(var(--h) 55% 60% / 0.35); transform: scale(1.12); }
+.block .planmore {
+  font-size: 10px;
+  color: hsl(var(--h) 24% 64%);
+  padding-left: 19px;
+  letter-spacing: 0.02em;
+}
+.block .todo.finished .tick {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #06251a;
+}
+.block .todo.finished > span { opacity: 0.5; text-decoration: line-through; }
+.block .todo.dropped > span { opacity: 0.38; text-decoration: line-through; }
+
+/* An unanswered piece of work is the loudest thing in the block. */
+.block.needs .tick { border-color: var(--warn); color: var(--warn); }
+.block.needs .todo.finished .tick { border-color: var(--ok); color: #06251a; }
+
+/* ------------------------------------------------------ picking a landing spot
+
+   While you're placing something, the grid stops being a calendar and becomes a
+   set of targets. Periods you can drop work INTO light up; everything else steps
+   back so there's no question about what's tappable. */
+
+.gridwrap.pickmode .block { opacity: 0.34; transition: opacity .18s, box-shadow .18s; }
+.gridwrap.pickmode .block.dropinto {
+  opacity: 1;
+  cursor: copy;
+  border-color: rgba(255, 122, 69, 0.7);
+  box-shadow: 0 0 0 1px rgba(255, 122, 69, 0.45), 0 8px 22px rgba(255, 122, 69, 0.16);
+}
+.gridwrap.pickmode .block.dropinto:hover,
+.gridwrap.pickmode .block.dropinto:active {
+  filter: brightness(1.22);
+  box-shadow: 0 0 0 2px rgba(255, 122, 69, 0.75), 0 10px 26px rgba(255, 122, 69, 0.24);
+}
+.gridwrap.pickmode .col { cursor: crosshair; }
+.gridwrap.pickmode .col:hover { background: rgba(255, 122, 69, 0.045); }
+.gridwrap.pickmode .grabber { display: none; }
+
+/* The primary way out of the reschedule sheet. It's a target, not a link. */
+.bigpick {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  border: 1px solid rgba(255, 122, 69, 0.5);
+  background: linear-gradient(180deg, rgba(255, 122, 69, 0.16), rgba(255, 122, 69, 0.05));
+  transition: border-color .14s, background .14s, transform .12s;
+}
+.bigpick b { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.bigpick span { font-size: 12px; color: var(--text-2); line-height: 1.45; }
+.bigpick:hover { border-color: rgba(255, 122, 69, 0.85); background: linear-gradient(180deg, rgba(255, 122, 69, 0.24), rgba(255, 122, 69, 0.08)); }
+.bigpick:active { transform: scale(0.985); }
+
+.slot.class b { color: var(--text); }
+.slot.class { border-style: dashed; }
+
+/* ------------------------------------------------------------------- undo bar
+
+   Choosing where something goes commits it immediately — one tap, no "are you
+   sure". That's only fair if taking it back is just as cheap. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6);
+  animation: toastin 0.3s cubic-bezier(0.16, 1.02, 0.3, 1);
+  max-width: calc(100vw - 24px);
+}
+@keyframes toastin {
+  from { transform: translate(-50%, 16px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* A to-do row in the inspector: same shape as a note, one box wider. */
+.noterow.istask { grid-template-columns: 26px 104px 1fr 26px; }
+.noterow .rank {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 6px;
+  height: 26px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.noterow .rank:hover { border-color: var(--text-3); background: var(--raised); }
+.noterow.finished .rank { background: var(--ok); border-color: var(--ok); color: #06251a; }
+.noterow.finished input { opacity: 0.55; text-decoration: line-through; }
+
+/* A live gesture on the phone reads hotter than a mouse ghost — you can't see a
+   cursor, so the shape itself has to say "this is happening now". */
+.dragghost.live {
+  border-color: var(--now);
+  border-style: solid;
+  background: rgba(255, 122, 69, 0.16);
+  color: var(--now);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  /* Fingertips, not cursors: the resize edges have to be catchable, and visible
+     enough that you know they're there at all. */
+  .grabber { height: 16px; }
+  .grabber::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 26px;
+    height: 3px;
+    border-radius: 2px;
+    background: hsl(var(--h) 45% 70% / 0.45);
+  }
+  .grabber.top::after { top: 2px; }
+  .grabber.bottom::after { bottom: 2px; }
+  /* Anything too short to hold two handles doesn't get them drawn. */
+  .block.short .grabber::after, .block.tight .grabber::after { display: none; }
+  .block.pin .grabber::after { display: none; }
+
+  .block .todo > span { font-size: 13px; }
+  .block .tick { width: 18px; height: 18px; border-radius: 5px; font-size: 10px; }
+  .block .planlab { font-size: 10px; }
+  .block .planmore { font-size: 11.5px; padding-left: 24px; }
+
+  .bigpick { padding: 16px; }
+  .bigpick b { font-size: 16px; }
+  .slots { display: grid; grid-template-columns: 1fr 1fr; }
+  .slot { padding: 11px 12px; }
+  .slot b { font-size: 13.5px; }
+
+  .toast { left: 12px; right: 12px; transform: none; max-width: none; }
+  @keyframes toastin {
+    from { transform: translateY(16px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+
+  .noterow.istask { grid-template-columns: 30px 112px 1fr 30px; }
+  .noterow .rank { height: 30px; }
+}

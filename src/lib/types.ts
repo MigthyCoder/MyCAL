@@ -28,6 +28,13 @@ export interface DayNote {
   id: string
   text: string
   marker?: MarkerType
+  /** Work you moved into this block — homework you'll do during that class,
+   *  something to ask a teacher. It's a task like any other: it sits inside the
+   *  period instead of stacking a second block on top of it, and the period owes
+   *  you an answer until every one of them is resolved. */
+  task?: boolean
+  /** Only meaningful with `task`. */
+  done?: 'finished' | 'dropped'
 }
 
 /** A Series is the definition of a block. A one-off block is just a series whose
