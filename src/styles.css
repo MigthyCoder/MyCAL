@@ -30,6 +30,19 @@
     --tw-ring-shadow: 0 0 #0000;
     --tw-shadow: 0 0 #0000;
   }
+
+  /* The other half of preflight the utilities assume. Without it a button with
+     no background utility -- every shadcn ghost in its resting state -- falls
+     through to the UA's `buttonface`, which paints a grey slab with an outset
+     border. It looked like a stuck hover state. In the base layer so any
+     utility still overrides it, and the app's own unlayered reset is untouched. */
+  button,
+  [type='button'],
+  [type='reset'],
+  [type='submit'] {
+    background-color: transparent;
+    background-image: none;
+  }
 }
 
 /* shadcn addresses colour through its own token names. Rather than run a second
@@ -2131,3 +2144,68 @@ button.tasktext:hover { background: var(--raised); }
 
 /* Weekends recede rather than being coloured differently. */
 .col.weekend { background: var(--tint); }
+
+/* One bordered group in the header, not three. The week stepper earns a shell
+   because it is the control you actually reach for; row height and appearance
+   are set-and-forget, so they sit flat and only pick up an edge on hover. */
+.navgroup:has(.themetoggle),
+.nav > .navgroup + .navgroup {
+  border-color: transparent;
+  background: transparent;
+}
+.nav > .navgroup + .navgroup:hover { border-color: var(--line); }
+
+/* The separators were doing the same job as the group shells. Keep one. */
+.nav [data-slot='separator']:first-of-type { display: none; }
+
+/* ============================================ shadcn controls, normalised */
+
+/* Ghost buttons were painting a mid-grey fill in their resting state. Rather
+   than keep chasing which layer won, the resting and hover states for the
+   controls this app places are stated outright — they have to match the token
+   palette anyway, and an explicit rule is cheaper to reason about than a
+   utility resolved three layers deep. */
+.taskdel,
+.taskwhenbtn,
+.nav [data-slot='button'][data-variant='ghost'] {
+  background: transparent;
+  color: var(--text-3);
+}
+.taskdel:hover,
+.taskwhenbtn:hover,
+.nav [data-slot='button'][data-variant='ghost']:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+.taskdel:hover { color: var(--danger); }
+
+/* Outline and solid keep their own fills but take this app's surfaces. */
+.nav [data-slot='button'][data-variant='outline'] {
+  background: var(--panel);
+  border-color: var(--line-mid);
+  color: var(--text-2);
+}
+.nav [data-slot='button'][data-variant='outline']:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+@media (max-width: 760px) {
+  /* Header has to stay on one row: the week arrows were dropped on mobile
+     precisely to buy that space, and shadcn's default heights spent it again. */
+  .topbar { gap: 8px; }
+  .nav { gap: 4px; width: 100%; }
+  .nav [data-slot='button'] { min-height: 44px; }
+  .nav [data-slot='button'][data-size='icon-sm'] { min-width: 44px; }
+  .navgroup { flex: 1; }
+  .navgroup .range { flex: 1; text-align: center; }
+
+  /* Everything tappable in the dock back to the 44px floor that the
+     hand-written controls used to hold. */
+  .taskadd [data-slot='input'] { min-height: 44px; font-size: 16px; }
+  .taskadd [data-slot='button'] { min-height: 44px; }
+  .taskdock [data-slot='checkbox'] { width: 22px; height: 22px; }
+  .taskcheck { min-width: 44px; min-height: 44px; }
+  .taskdel, .taskwhenbtn { min-width: 44px; min-height: 44px; }
+  .taskdonehead [data-slot='button'] { min-height: 44px; }
+}
