@@ -3,6 +3,16 @@ import type { Placed } from '../lib/layout'
 import type { MarkerType } from '../lib/types'
 import { CATEGORY_META, FLEX_OPTIONS } from '../lib/seed'
 import { DAY_START_MIN, fmtRange, fmtTime, parseKey } from '../lib/time'
+import {
+  BLOCK_GAP_X,
+  BLOCK_INSET_X,
+  BLOCK_MIN_H,
+  BLOCK_OPEN_FLEX_H,
+  BLOCK_OPEN_H,
+  BLOCK_TITLE_ONLY_H,
+  BLOCK_TWO_LINE_H,
+  PIN_H,
+} from '../lib/geometry'
 import { clearOutcome, setOutcome, setQuickNote, patchOverride } from '../lib/store'
 
 /** Width the hover rail claims, in px. The block slides left by this much so
@@ -68,13 +78,12 @@ export function BlockCard({
   // block needs more room than an open note block.
   // A pin is a line, so it has a height of its own rather than one earned from
   // its duration — which is zero.
-  const PIN_H = 26
-  const openMin = isFlex && occ.state === 'needs-outcome' ? 156 : 104
+  const openMin = isFlex && occ.state === 'needs-outcome' ? BLOCK_OPEN_FLEX_H : BLOCK_OPEN_H
   const height = occ.pin
     ? PIN_H
     : active
       ? Math.max(naturalH, openMin)
-      : Math.max(naturalH, 18)
+      : Math.max(naturalH, BLOCK_MIN_H)
   // Hovering lets a block grow past its time slot to show the rest of a note.
   // Blocks whose text already fits don't move at all, so this never jitters.
   // Same rule as the hover rail: only a commitment that isn't already riding on
@@ -185,8 +194,10 @@ export function BlockCard({
 
   // A block only stacks title-over-note when there's room for both lines.
   // Below that it puts them on one line; below that, title only.
-  const compact = height < 30 && !active
-  const tight = !active && !compact && height < 46
+  // Derived from the type scale rather than picked: `compact` is "there is not
+  // room for a second line", `tight` is "there is, but only just".
+  const compact = height < BLOCK_TITLE_ONLY_H && !active
+  const tight = !active && !compact && height < BLOCK_TWO_LINE_H
   // The clock is redundant — you can read the time off the grid — so a note
   // always outranks it for the space.
   // Something cascaded on top of this block will cover its lower half, and half
@@ -215,8 +226,8 @@ export function BlockCard({
         // Inset from the left so a stripe of whatever is underneath still shows
         // — you can see this is *on* something, not beside it. Pixels rather
         // than a percentage, so the block keeps essentially its whole width.
-        left: `calc(${left * 100}% + ${3 + inset}px)`,
-        width: `calc(${width * 100}% - ${6 + inset}px)`,
+        left: `calc(${left * 100}% + ${BLOCK_INSET_X + inset}px)`,
+        width: `calc(${width * 100}% - ${BLOCK_INSET_X + BLOCK_GAP_X + inset}px)`,
         // base 2+layer · grown base 6 · rail 7 · rider 8+layer · grown rider 12 ·
         // open 20. A host never rises above its riders, and a cascaded block
         // always sits above the one it covers.

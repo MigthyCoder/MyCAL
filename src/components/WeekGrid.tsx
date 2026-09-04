@@ -16,6 +16,7 @@ import {
 import { BlockCard, RAIL_W } from './BlockCard'
 import { moveOccurrenceToDate, reshapeOccurrence } from '../lib/store'
 import { scheduleIdFor } from '../lib/bell'
+import { COL_EVEN, COL_FOCUSED, COL_UNFOCUSED, SCROLL_LEAD_MIN } from '../lib/geometry'
 import type { SchoolConfig } from '../lib/types'
 import { Badge } from './shadcn/badge'
 
@@ -106,7 +107,7 @@ export function WeekGrid({
   useEffect(() => {
     if (scrolled.current || !scrollRef.current) return
     scrolled.current = true
-    const target = (minutesNow(now) - DAY_START_MIN - 105) * pxPerMin
+    const target = (minutesNow(now) - DAY_START_MIN - SCROLL_LEAD_MIN) * pxPerMin
     scrollRef.current.scrollTop = Math.max(0, target)
   }, [now, pxPerMin])
 
@@ -124,10 +125,10 @@ export function WeekGrid({
     // min-content floor and the focused day can never actually grow.
     const cols = days.map((_, i) =>
       focusedDay === i
-        ? 'minmax(0, 3.4fr)'
+        ? `minmax(0, ${COL_FOCUSED}fr)`
         : focusedDay === null
-          ? 'minmax(0, 1fr)'
-          : 'minmax(0, 0.7fr)',
+          ? `minmax(0, ${COL_EVEN}fr)`
+          : `minmax(0, ${COL_UNFOCUSED}fr)`,
     )
     return `var(--gutter) ${cols.join(' ')}`
   }, [days, focusedDay])

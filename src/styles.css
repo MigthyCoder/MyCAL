@@ -2209,3 +2209,50 @@ button.tasktext:hover { background: var(--raised); }
   .taskdel, .taskwhenbtn { min-width: 44px; min-height: 44px; }
   .taskdonehead [data-slot='button'] { min-height: 44px; }
 }
+
+/* ================================================= week grid: geometry pass */
+
+/* These mirror lib/geometry.ts. The values there drive layout maths in JS; the
+   ones here are the same measurements expressed for paint. If you change one,
+   change the other — BLOCK_PAD_Y and LINE_H are what the height thresholds are
+   built from, so a padding change here silently moves when a block drops its
+   subtitle. */
+:root {
+  --gutter: 56px;          /* GUTTER_W */
+  --blk-pad-y: 5px;        /* BLOCK_PAD_Y / 2 */
+  --blk-line: 15px;        /* LINE_H */
+}
+
+.block {
+  padding: var(--blk-pad-y) 8px var(--blk-pad-y) 9px;
+  border-radius: var(--r-md);
+}
+
+/* One line, at the size the geometry assumes. A block at BLOCK_MIN_H is
+   exactly this line plus its padding and border, so the title always fits. */
+.block .title { font-size: 12px; line-height: var(--blk-line); }
+.block .sub { font-size: 11px; line-height: var(--blk-line); }
+
+/* Time axis. The label sits centred on its hour line rather than beside it, so
+   the eye can run down the gutter and land on the right row. */
+.gutter .hr {
+  right: 8px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* Hour lines carry the structure; the half-hour is a hint that only appears
+   when you are working in the grid. */
+.hline { border-top-color: var(--line); }
+.hline.half { border-top-color: transparent; }
+.scroll:hover .hline.half { border-top-color: var(--line); }
+
+/* Column rules are the quietest thing on the grid — they separate days, they
+   are not content. */
+.col { border-right-color: var(--line); }
+.dayhead .cell { border-right-color: var(--line); }
+
+@media (max-width: 760px) {
+  :root { --gutter: 44px; }   /* GUTTER_W_MOBILE */
+}

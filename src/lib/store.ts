@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { Category, DayNote, DB, MarkerType, Outcome, Override, SchoolConfig, Series, Task } from './types'
 import type { Occurrence } from './occurrences'
 import { MHHS_SCHEDULES, MHHS_SPECIAL_DATES, MHHS_WEEKDAYS, PRESETS, type BellSchedule } from './bell'
+import { DEFAULT_DENSITY, DENSITY_STEPS } from './geometry'
 
 const KEY = 'mycal.db.v1'
 
@@ -41,8 +42,10 @@ const todayKey = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export const DENSITY_STEPS = [1.15, 1.5, 1.85, 2.3, 2.9]
-export const DEFAULT_DENSITY = 1.85
+// Row height is defined in px-per-hour in lib/geometry and converted there, so
+// the +/- steps and the block height thresholds cannot drift apart. Re-exported
+// because the rest of the app has always imported them from the store.
+export { DENSITY_STEPS, DEFAULT_DENSITY }
 
 const emptyDB = (): DB => ({
   version: 1,
