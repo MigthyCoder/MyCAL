@@ -2,9 +2,14 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+/** forwardRef for the same reason as button.tsx: the registry targets React 19
+ *  where ref is a plain prop, and this app is on 18.3. TaskDock keeps focus in
+ *  the add field after a submit, which needs a real ref. */
+const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+  function Input({ className, type, ...props }, ref) {
   return (
     <input
+      ref={ref}
       type={type}
       data-slot="input"
       className={cn(
@@ -16,6 +21,6 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       {...props}
     />
   )
-}
+})
 
 export { Input }

@@ -11,6 +11,11 @@ import {
 } from '../lib/store'
 import { parseKey } from '../lib/time'
 import { CATEGORIES, CATEGORY_META } from '../lib/seed'
+import { ChevronRight, Undo2, X } from 'lucide-react'
+import { Button } from './shadcn/button'
+import { Input } from './shadcn/input'
+import { Badge } from './shadcn/badge'
+import { Checkbox } from './shadcn/checkbox'
 
 /** "Thu Sep 3" — enough to place it without spending a whole row on a date. */
 const fmtWhen = (d: string) =>
@@ -93,27 +98,28 @@ export function TaskDock({
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          <span className={`caret ${open ? 'on' : ''}`} aria-hidden="true">›</span>
+          <ChevronRight className={`caret ${open ? 'on' : ''}`} aria-hidden="true" />
           Tasks
-          {todo.length > 0 && <span className="taskcount">{todo.length}</span>}
+          {todo.length > 0 && (
+            <Badge variant="secondary" className="taskcount">{todo.length}</Badge>
+          )}
         </button>
 
         {/* The add field lives in the collapsed bar too. Having to open a panel
             before you can write down the thing you just remembered is how the
             thing stops getting written down. */}
         <form className="taskadd" onSubmit={submit}>
-          <input
+          <Input
             ref={inputRef}
-            className="field"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onFocus={() => setOpen(true)}
             placeholder="Something to do, no date needed"
             aria-label="Add a task"
           />
-          <button className="btn sm ghost" type="submit" disabled={!draft.trim()}>
+          <Button size="sm" variant="secondary" type="submit" disabled={!draft.trim()}>
             Add
-          </button>
+          </Button>
         </form>
       </div>
 
@@ -128,17 +134,16 @@ export function TaskDock({
 
           {todo.map((t) => (
             <div className="taskrow" key={t.id}>
-              {/* The label is the tap target, not the 22px box: a checkbox is a
-                  replaced element, so it cannot grow a hit area with a
-                  pseudo-element the way .pindot does. */}
-              <label className="taskcheck">
-                <input
-                  type="checkbox"
+              {/* Radix renders a real button rather than an <input>, so the tap
+                  area is sized on the control itself and the wrapper is only
+                  there to hold the row's rhythm. */}
+              <span className="taskcheck">
+                <Checkbox
                   checked={false}
-                  onChange={() => toggleTask(t.id)}
+                  onCheckedChange={() => toggleTask(t.id)}
                   aria-label={`Mark "${t.text}" done`}
                 />
-              </label>
+              </span>
               <span className="taskcolor">
                 <button
                   className="colordot"
@@ -196,40 +201,47 @@ export function TaskDock({
               )}
               {t.scheduledFor && t.seriesId ? (
                 <span className="taskwhen">
-                  <button
+                  <Badge
+                    asChild
+                    variant="outline"
                     className="whenchip"
-                    title="Show me this on the calendar"
-                    aria-label={`"${t.text}" is scheduled for ${fmtWhen(t.scheduledFor)}. Show it on the calendar.`}
-                    onClick={() => onJumpTo?.(t.seriesId!, t.scheduledFor!)}
                   >
-                    {fmtWhen(t.scheduledFor)}
-                  </button>
-                  <button
-                    className="rowx"
-                    title="Take it back off the calendar"
+                    <button
+                      aria-label={`"${t.text}" is scheduled for ${fmtWhen(t.scheduledFor)}. Show it on the calendar.`}
+                      onClick={() => onJumpTo?.(t.seriesId!, t.scheduledFor!)}
+                    >
+                      {fmtWhen(t.scheduledFor)}
+                    </button>
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     aria-label={`Unschedule "${t.text}"`}
                     onClick={() => unscheduleTask(t.id)}
                   >
-                    ↩
-                  </button>
+                    <Undo2 />
+                  </Button>
                 </span>
               ) : (
-                <button
-                  className="btn sm ghost taskwhenbtn"
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="taskwhenbtn"
                   aria-label={`Schedule "${t.text}" by dragging it onto the calendar`}
                   onClick={() => onSchedule?.(t)}
                 >
                   Schedule
-                </button>
+                </Button>
               )}
-              <button
-                className="rowx"
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="taskdel"
                 aria-label={`Delete "${t.text}"`}
-                title="Delete"
                 onClick={() => deleteTask(t.id)}
               >
-                ×
-              </button>
+                <X />
+              </Button>
             </div>
           ))}
 
@@ -237,29 +249,29 @@ export function TaskDock({
             <div className="taskdone">
               <div className="taskdonehead">
                 <span>{done.length} done</span>
-                <button className="btn sm ghost" onClick={clearDoneTasks}>
+                <Button variant="ghost" size="xs" onClick={clearDoneTasks}>
                   Clear
-                </button>
+                </Button>
               </div>
               {done.map((t) => (
                 <div className="taskrow is-done" key={t.id}>
-                  <label className="taskcheck">
-                    <input
-                      type="checkbox"
+                  <span className="taskcheck">
+                    <Checkbox
                       checked
-                      onChange={() => toggleTask(t.id)}
+                      onCheckedChange={() => toggleTask(t.id)}
                       aria-label={`Mark "${t.text}" not done`}
                     />
-                  </label>
+                  </span>
                   <span className="tasktext">{t.text}</span>
-                  <button
-                    className="rowx"
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="taskdel"
                     aria-label={`Delete "${t.text}"`}
-                    title="Delete"
                     onClick={() => deleteTask(t.id)}
                   >
-                    ×
-                  </button>
+                    <X />
+                  </Button>
                 </div>
               ))}
             </div>

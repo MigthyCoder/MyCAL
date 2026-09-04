@@ -17,6 +17,7 @@ import { BlockCard, RAIL_W } from './BlockCard'
 import { moveOccurrenceToDate, reshapeOccurrence } from '../lib/store'
 import { scheduleIdFor } from '../lib/bell'
 import type { SchoolConfig } from '../lib/types'
+import { Badge } from './shadcn/badge'
 
 const HOURS = Array.from(
   { length: Math.floor((DAY_END_MIN - DAY_START_MIN) / 60) + 1 },
@@ -342,7 +343,14 @@ export function WeekGrid({
                 {String(d.getDate()).padStart(2, '0')}
                 {today && <span className="todaypill">TODAY</span>}
               </div>
-              {chip && <div className={`schedchip ${manual ? 'manual' : ''}`}>{chip}</div>}
+              {chip && (
+                <Badge
+                  variant={manual ? 'default' : 'secondary'}
+                  className={`schedchip ${manual ? 'manual' : ''}`}
+                >
+                  {chip}
+                </Badge>
+              )}
             </div>
           )
         })}
