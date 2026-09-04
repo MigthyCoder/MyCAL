@@ -12,6 +12,26 @@
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
+/* The one piece of preflight the utilities genuinely depend on.
+   Tailwind's `border` utility compiles to
+   `border-style: var(--tw-border-style); border-width: 1px`, and that variable
+   is declared in preflight. Without it the declaration is invalid, so every
+   shadcn border silently resolved to nothing — the checkbox rendered as an
+   invisible 16x16 box. Declaring the variable alone is inert for the existing
+   sheet: it sets no border by itself, it only gives the utilities something to
+   resolve against. Same for ring/shadow, which shadcn leans on for focus. */
+@layer base {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    --tw-border-style: solid;
+    --tw-ring-color: transparent;
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-shadow: 0 0 #0000;
+  }
+}
+
 /* shadcn addresses colour through its own token names. Rather than run a second
    palette beside the one this app already has, they are aliased onto it — so a
    shadcn Button and a hand-written .block read the same --panel, and the
@@ -205,8 +225,14 @@ body {
   overflow: hidden;
 }
 
-button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
-input, textarea, select { font: inherit; color: inherit; }
+/* These resets are UNLAYERED, and unlayered CSS outranks every layer — so a
+   bare `button { border: none }` silently beat Tailwind's `border` utility and
+   every shadcn control came out borderless. Excluding [data-slot] keeps the
+   reset for this app's own buttons while letting the vendored components style
+   themselves; shadcn tags all of them with that attribute. */
+button:not([data-slot]) { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+button[data-slot] { cursor: pointer; }
+input:not([data-slot]), textarea, select { font: inherit; color: inherit; }
 
 /* ------------------------------------------------------------------ shell */
 
