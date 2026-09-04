@@ -1917,3 +1917,65 @@ button.tasktext:hover { background: var(--raised); }
   transition: background 0.2s ease, color 0.2s ease;
 }
 .themecycle:hover { background: var(--raised); color: var(--text); }
+
+/* ========================================================== topbar (shadcn) */
+
+/* Compact and quiet. The header is navigation, not content: it gets one
+   hairline separating it from the week and nothing else. */
+.topbar {
+  padding: 10px 16px;
+  gap: 12px;
+  row-gap: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.brand { gap: 9px; }
+.brand h1 { font-size: 13px; letter-spacing: 0.15em; }
+.brand span { font-size: 11.5px; }
+
+.nav { gap: 6px; }
+
+/* Related controls read as one object rather than three loose buttons. */
+.navgroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px;
+  border: 1px solid var(--line-mid);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+.navgroup .range {
+  min-width: 122px;
+  padding: 0 4px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.navgroup .range:hover { color: var(--text); }
+
+/* The appearance switch sits in the same shell as the nav groups so the header
+   reads as one row of matched controls. */
+.themetoggle {
+  margin-left: 0;
+  border-radius: var(--r-md);
+  border-color: var(--line-mid);
+  background: var(--bg);
+  padding: 1px;
+  gap: 1px;
+}
+.themetoggle button {
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: calc(var(--r-md) - 3px);
+  font-size: 12px;
+}
+.themetoggle button.on { background: var(--panel-2); color: var(--text); }
+
+@media (max-width: 760px) {
+  .topbar { padding: calc(8px + env(safe-area-inset-top)) 10px 8px; }
+  .navgroup .range { min-width: 96px; font-size: 12px; }
+}

@@ -7,11 +7,12 @@ import { Onboarding } from './components/Onboarding'
 import { DayScheduleSheet } from './components/DayScheduleSheet'
 import { WeekStrip } from './components/WeekStrip'
 import { TaskDock } from './components/TaskDock'
-import { ThemeToggle } from './components/ThemeToggle'
-import { SyncButton, SyncSheet } from './components/SyncSheet'
+import { Topbar } from './components/Topbar'
+import { TooltipProvider } from './components/shadcn/tooltip'
+import { SyncSheet } from './components/SyncSheet'
 import { MOBILE, useMedia } from './lib/useMedia'
 import { buildOccurrences, openLoops, type Occurrence } from './lib/occurrences'
-import { DENSITY_STEPS, scheduleTask, setDensity, useDB } from './lib/store'
+import { scheduleTask, useDB } from './lib/store'
 import { CATEGORIES, CATEGORY_META } from './lib/seed'
 import { addDays, dateKey, fmtMonthRange, fmtTime, isSameDay, parseKey, startOfWeek, weekDays } from './lib/time'
 
@@ -125,74 +126,25 @@ export default function App() {
   const empty = db.series.length === 0 && !db.school.enabled
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="app">
-      <div className="topbar">
-        <div className="brand">
-          <h1>MyCAL</h1>
-          <span>your life, in time</span>
-        </div>
-        <div className="nav">
-          <button className="btn icon" onClick={() => jump(-1)} title="Previous week (←)" aria-label="Previous week">‹</button>
-          {/* Looking back at an old week is a first-class use of this thing, so
-              the range doubles as a jump-to-date control. */}
-          <label className="range jump" title="Jump to a date">
-            {fmtMonthRange(days)}
-            <input
-              type="date"
-              value={dateKey(days[0])}
-              onChange={(e) => {
-                if (!e.target.value) return
-                setAnchor(startOfWeek(parseKey(e.target.value)))
-                setFocusedDay(null)
-              }}
-            />
-          </label>
-          <button className="btn icon" onClick={() => jump(1)} title="Next week (→)" aria-label="Next week">›</button>
-          {!thisWeek && (
-            <button className="btn ghost sm" style={{ marginLeft: 8 }} onClick={goToday}>
-              Today
-            </button>
-          )}
-          <div className="zoom" title="Row height — taller rows fit more of a note">
-            <button
-              aria-label="Shorter rows"
-              disabled={db.density <= DENSITY_STEPS[0]}
-              onClick={() => {
-                const i = DENSITY_STEPS.findIndex((d) => d >= db.density)
-                setDensity(DENSITY_STEPS[Math.max(0, i - 1)])
-              }}
-            >
-              −
-            </button>
-            <button
-              aria-label="Taller rows"
-              disabled={db.density >= DENSITY_STEPS[DENSITY_STEPS.length - 1]}
-              onClick={() => {
-                const i = DENSITY_STEPS.findIndex((d) => d > db.density)
-                setDensity(DENSITY_STEPS[i === -1 ? DENSITY_STEPS.length - 1 : i])
-              }}
-            >
-              ＋
-            </button>
-          </div>
-          <ThemeToggle />
-          <SyncButton onOpen={() => setSyncOpen(true)} />
-          <button className="btn ghost" style={{ marginLeft: 10 }} onClick={() => setOnboarding(true)}>
-            {db.school.enabled ? (isMobile ? 'Classes' : 'My classes') : 'Set up school'}
-          </button>
-          <button
-            className="btn solid"
-            style={{ marginLeft: 6 }}
-            onClick={() => {
-              const d = focusedDay !== null ? days[focusedDay] : now
-              const inWeek = days.some((x) => isSameDay(x, d))
-              setDraft({ date: dateKey(inWeek ? d : days[0]), startMin: 16 * 60, endMin: 17 * 60 })
-            }}
-          >
-            + Block
-          </button>
-        </div>
-      </div>
+      <Topbar
+        days={days}
+        density={db.density}
+        thisWeek={thisWeek}
+        schoolEnabled={db.school.enabled}
+        isMobile={isMobile}
+        onJump={jump}
+        onPickDate={(d) => { setAnchor(d); setFocusedDay(null) }}
+        onToday={goToday}
+        onOpenSync={() => setSyncOpen(true)}
+        onOpenSchool={() => setOnboarding(true)}
+        onCreate={() => {
+          const d = focusedDay !== null ? days[focusedDay] : now
+          const inWeek = days.some((x) => isSameDay(x, d))
+          setDraft({ date: dateKey(inWeek ? d : days[0]), startMin: 16 * 60, endMin: 17 * 60 })
+        }}
+      />
 
       <div className="headline">
         <h2>{thisWeek ? 'This week' : fmtMonthRange(days)}</h2>
@@ -365,5 +317,6 @@ export default function App() {
         />
       )}
     </div>
+    </TooltipProvider>
   )
 }

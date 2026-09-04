@@ -38,20 +38,33 @@ const buttonVariants = cva(
   }
 )
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+/**
+ * Wrapped in forwardRef, which the upstream shadcn source does not do.
+ *
+ * The current registry targets React 19, where `ref` is an ordinary prop on a
+ * function component. This app is on React 18.3, where it is not — so anything
+ * that clones this with a ref (TooltipTrigger asChild, DropdownMenuTrigger,
+ * Slot) got "Function components cannot be given refs", handed the child a null
+ * ref, and then crashed on the first useRef against it.
+ *
+ * Patching the component rather than upgrading React: shadcn components are
+ * vendored into the project to be owned and edited, and a major React bump on a
+ * deployed app with no test suite is a much larger bet than four lines here.
+ * Re-running `shadcn add button` will overwrite this.
+ */
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<"button"> &
+    VariantProps<typeof buttonVariants> & { asChild?: boolean }
+>(function Button(
+  { className, variant = "default", size = "default", asChild = false, ...props },
+  ref,
+) {
   const Comp = asChild ? Slot.Root : "button"
 
   return (
     <Comp
+      ref={ref}
       data-slot="button"
       data-variant={variant}
       data-size={size}
@@ -59,6 +72,6 @@ function Button({
       {...props}
     />
   )
-}
+})
 
 export { Button, buttonVariants }
