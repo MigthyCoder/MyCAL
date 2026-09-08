@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/WeeklyCalendar.tsx"
+        ],
+        "createdAt": "2026-09-08T00:56:49.164Z",
+        "reason": "user confirmed: the spec specifies border-l-4 verbatim in the category colour matrix for all three categories"
+      }
+    ]
+  }
+}

@@ -89,15 +89,15 @@
 :root {
   /* --- surfaces, base to elevated. Depth is a step up in lightness, which is
          how a dark UI says "this is in front" without a drop shadow. --- */
-  --bg: #08090c;
-  --panel: #0e1015;
-  --panel-2: #14161d;
-  --raised: #191c25;
+  --bg: #09090b;
+  --panel: #0e0e11;
+  --panel-2: #18181b;
+  --raised: #27272a;
 
   /* --- hairlines --- */
-  --line: rgba(255, 255, 255, 0.055);
-  --line-mid: rgba(255, 255, 255, 0.10);
-  --line-strong: rgba(255, 255, 255, 0.18);
+  --line: rgba(39, 39, 42, 0.60);
+  --line-mid: rgba(63, 63, 70, 0.60);
+  --line-strong: rgba(82, 82, 91, 0.70);
 
   /* Grid rules are their own pair. A hairline on a panel is not the same job as
      a border on a control: it has to survive being 1px tall across a wide, busy
@@ -110,11 +110,11 @@
   --grid-line-half: rgba(255, 255, 255, 0.13);
 
   /* --- text, primary to tertiary --- */
-  --text: #eceef4;
-  --text-2: #a7abb8;
+  --text: #f4f4f5;
+  --text-2: #a1a1aa;
   /* Was #6f7480, under the 4.5:1 AA floor on both surfaces. #797e8b is the
      smallest step that clears it (4.68:1 on --panel) and still reads as dim. */
-  --text-3: #797e8b;
+  --text-3: #a1a1aa;
 
   /* --- semantic accents. One accent for "now"; warn and ok never do its job. --- */
   --now: #ff7a45;
@@ -173,14 +173,14 @@
    to one of those in JS and re-resolved when the OS flips, so this sheet never
    needs a duplicated prefers-color-scheme copy of the whole palette. */
 :root[data-theme='light'] {
-  --bg: #fbfbfa;
+  --bg: #fafafa;
   --panel: #ffffff;
-  --panel-2: #f4f4f2;
-  --raised: #ebebe8;
+  --panel-2: #f4f4f5;
+  --raised: #e4e4e7;
 
-  --line: rgba(0, 0, 0, 0.07);
-  --line-mid: rgba(0, 0, 0, 0.12);
-  --line-strong: rgba(0, 0, 0, 0.22);
+  --line: rgba(228, 228, 231, 0.60);
+  --line-mid: rgba(212, 212, 216, 0.80);
+  --line-strong: rgba(161, 161, 170, 0.70);
 
   /* Not the dark alphas mirrored: black on #fff darkens faster than white
      lightens #0e1015, so matching the *measured* ratio takes different numbers.
@@ -521,7 +521,7 @@ input:not([data-slot]), textarea, select { font: inherit; color: inherit; }
 .block {
   position: absolute;
   z-index: 3;
-  border-radius: var(--radius);
+  border-radius: 12px;
   padding: 5px 8px 5px 9px;
   overflow: hidden;
   cursor: pointer;
@@ -542,7 +542,7 @@ input:not([data-slot]), textarea, select { font: inherit; color: inherit; }
   content: '';
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 2.5px;
+  width: 4px;
   background: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l));
 }
 .block:hover { filter: var(--blk-hover); border-color: hsl(var(--h) var(--blk-rail-s) var(--blk-rail-l) / 0.9); z-index: 5; }

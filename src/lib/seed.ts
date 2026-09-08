@@ -11,10 +11,10 @@ import type { Category } from './types'
  * *more* visible ones, so the error runs the safe way.
  */
 export const CATEGORY_META: Record<Category, { label: string; hue: number; lift: number }> = {
-  school: { label: 'School', hue: 258, lift: 0 },
+  school: { label: 'School', hue: 217, lift: 0 },
   work: { label: 'Work', hue: 38, lift: 20 },
   commitment: { label: 'Commitment', hue: 168, lift: 24 },
-  personal: { label: 'Personal', hue: 320, lift: 7 },
+  personal: { label: 'Personal', hue: 271, lift: 7 },
 }
 
 export const CATEGORIES = Object.keys(CATEGORY_META) as Category[]

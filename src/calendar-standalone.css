@@ -1,0 +1,7 @@
+/* Tailwind only — full import including preflight.
+   The app's own styles.css is deliberately NOT loaded here: it is ~2000 lines
+   of unlayered CSS, and unlayered rules outrank anything inside
+   @layer utilities, so every Tailwind class in this component was being
+   overridden by the legacy sheet (a `block` span computing to display:flex,
+   among others). A standalone component gets a standalone baseline. */
+@import 'tailwindcss';
