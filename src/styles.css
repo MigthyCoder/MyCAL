@@ -2342,3 +2342,127 @@ button.tasktext:hover { background: var(--raised); }
   font-size: 10.5px;
   color: var(--text-3);
 }
+
+/* ==========================================================================
+   Spec shell — nav bar, sidebar, calendar viewport
+   --------------------------------------------------------------------------
+   Written as plain classes rather than Tailwind utilities on purpose: this
+   sheet is unlayered, so it outranks @layer utilities and every Tailwind class
+   in the shell was losing to it. Same geometry as the spec, expressed in the
+   cascade that actually wins here.
+   ========================================================================== */
+
+.shell { width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
+
+/* --- top navigation, h-14 --- */
+.navbar {
+  height: 56px; width: 100%; flex: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.navbrand { font-weight: 600; font-size: 14px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+.navmark {
+  width: 20px; height: 20px; border-radius: 6px;
+  background: var(--text); color: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+}
+.viewpick { background: var(--panel-2); padding: 2px; border-radius: 8px; display: flex; gap: 4px; }
+.viewpick button {
+  position: relative; padding: 0 12px; height: 28px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; color: var(--text-3);
+  transition: color 0.15s;
+}
+.viewpick button.on { color: var(--text); }
+.viewpick button.on::before {
+  content: ''; position: absolute; inset: 0; border-radius: 6px;
+  background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,0.12); z-index: -1;
+}
+.navright { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--raised); color: var(--text-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600;
+}
+
+/* --- main split --- */
+.split { display: flex; flex-direction: row; width: 100%; flex: 1; min-height: 0; overflow: hidden; }
+
+/* --- sidebar, w-72 --- */
+.sidebar {
+  width: 288px; flex: none;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  display: flex; flex-direction: column;
+  padding: 20px; user-select: none; overflow-y: auto;
+}
+.sidebar .month { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 16px; }
+.minigrid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 4px; }
+.minigrid .dowletter {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  font-weight: 600; color: var(--text-3); text-align: center;
+}
+.minigrid .miniday {
+  font-size: 12px; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto; cursor: pointer; border-radius: 50%; color: var(--text-2);
+  transition: background 0.15s;
+}
+.minigrid .miniday:hover { background: var(--panel-2); }
+.minigrid .miniday.on { background: var(--text); color: var(--bg); font-weight: 500; }
+.minigrid .miniday.blank { cursor: default; }
+.minigrid .miniday.blank:hover { background: none; }
+
+.sidesection { margin-top: 28px; flex: none; }
+.sidelabel {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--text-3); margin-bottom: 12px; display: block;
+}
+.calrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px; border-radius: 8px; cursor: pointer;
+  transition: background 0.15s;
+}
+.calrow:hover { background: var(--panel-2); }
+.calbox {
+  width: 16px; height: 16px; border-radius: 4px; flex: none;
+  border: 1px solid var(--line-strong);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.calbox.on { border-color: transparent; background: hsl(var(--h) 62% 55%); }
+.calbox.on::after {
+  content: ''; width: 6px; height: 6px; border-radius: 2px; background: var(--bg);
+}
+.calrow span { font-size: 12px; font-weight: 500; }
+
+/* --- calendar viewport --- */
+.viewport { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* --- tasks in the sidebar ------------------------------------------------
+   The dock was built as a wide bar above the grid: a flex row with the add
+   field claiming 220px of it. In a 288px column that row has to become a
+   stack, and the panel chrome has to go — it is already inside a panel. */
+.sidetasks { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sidetasks .taskdock {
+  margin: 0; border: none; background: none; box-shadow: none;
+  display: flex; flex-direction: column; min-height: 0; flex: 1;
+}
+.sidetasks .taskbar {
+  flex-direction: column; align-items: stretch; gap: 8px; padding: 0;
+}
+.sidetasks .taskToggle { justify-content: flex-start; padding: 0; }
+.sidetasks .taskadd { min-width: 0; width: 100%; }
+.sidetasks .taskadd .field { flex: 1; min-width: 0; }
+.sidetasks .tasklist {
+  padding: 8px 0 0; overflow-y: auto; min-height: 0; flex: 1;
+}
+/* The row was laid out for a wide bar; in a narrow column the text needs to
+   wrap rather than push the delete button off the edge. */
+.sidetasks .taskrow { gap: 8px; }
+.sidetasks .tasktext { font-size: 12px; white-space: normal; }
+.sidetasks .taskwhen { flex-wrap: wrap; }
+.sidetasks .taskwhenbtn { opacity: 1; }

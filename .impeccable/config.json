@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-09-08T00:56:49.164Z",
         "reason": "user confirmed: the spec specifies border-l-4 verbatim in the category colour matrix for all three categories"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-09-08T01:05:20.583Z",
+        "reason": "user confirmed: spec specifies border-l-4 for the category colour matrix; .block::before widened 2.5px -> 4px to match"
       }
     ]
   }

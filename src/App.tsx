@@ -7,13 +7,14 @@ import { Onboarding } from './components/Onboarding'
 import { DayScheduleSheet } from './components/DayScheduleSheet'
 import { WeekStrip } from './components/WeekStrip'
 import { TaskDock } from './components/TaskDock'
-import { Topbar } from './components/Topbar'
+import { ThemeToggle } from './components/ThemeToggle'
 import { TooltipProvider } from './components/shadcn/tooltip'
 import { SyncSheet } from './components/SyncSheet'
 import { MOBILE, useMedia } from './lib/useMedia'
 import { buildOccurrences, openLoops, type Occurrence } from './lib/occurrences'
 import { scheduleTask, useDB } from './lib/store'
 import { CATEGORIES, CATEGORY_META } from './lib/seed'
+import type { Category } from './lib/types'
 import { addDays, dateKey, fmtMonthRange, fmtTime, isSameDay, parseKey, startOfWeek, weekDays } from './lib/time'
 
 export default function App() {
@@ -29,6 +30,8 @@ export default function App() {
   const [schedDay, setSchedDay] = useState<string | null>(null)
   const [syncOpen, setSyncOpen] = useState(false)
   const [dropTarget, setDropTarget] = useState<number | null>(null)
+  // Sidebar calendar filters. Every category on by default.
+  const [shown, setShown] = useState<Category[]>(() => [...CATEGORIES])
   // "Pick on calendar": the next time you choose on the grid becomes the target
   // for the move you already started, instead of creating a new block.
   const [picking, setPicking] = useState<{ occ: Occurrence; draft: ReschedDraft } | null>(null)
@@ -56,9 +59,13 @@ export default function App() {
     [isMobile, days, mobileDay],
   )
 
-  const occurrences = useMemo(
+  const allOccurrences = useMemo(
     () => buildOccurrences(db, dateKeys, now),
     [db, dateKeys, now],
+  )
+  const occurrences = useMemo(
+    () => allOccurrences.filter((o) => shown.includes(o.series.category)),
+    [allOccurrences, shown],
   )
 
   // Open loops are pulled from a wider window than the visible week — something
@@ -73,7 +80,6 @@ export default function App() {
     [db, loopWindow, now],
   )
 
-  const thisWeek = isSameDay(startOfWeek(now), anchor)
   const jump = (n: number) => { setAnchor((a) => addDays(a, n * 7)); setFocusedDay(null) }
   const goToday = () => {
     setAnchor(startOfWeek(new Date()))
@@ -127,40 +133,112 @@ export default function App() {
 
   return (
     <TooltipProvider delayDuration={300}>
-    <div className="app">
-      <Topbar
-        days={days}
-        density={db.density}
-        thisWeek={thisWeek}
-        schoolEnabled={db.school.enabled}
-        isMobile={isMobile}
-        onJump={jump}
-        onPickDate={(d) => { setAnchor(d); setFocusedDay(null) }}
-        onToday={goToday}
-        onOpenSync={() => setSyncOpen(true)}
-        onOpenSchool={() => setOnboarding(true)}
-        onCreate={() => {
-          const d = focusedDay !== null ? days[focusedDay] : now
-          const inWeek = days.some((x) => isSameDay(x, d))
-          setDraft({ date: dateKey(inWeek ? d : days[0]), startMin: 16 * 60, endMin: 17 * 60 })
-        }}
-      />
-
-      <div className="headline">
-        <h2>{thisWeek ? 'This week' : fmtMonthRange(days)}</h2>
-        <div className="sub">
-          {empty
-            ? 'Nothing here yet — set up your school week, then drag to add anything else.'
-            : `${occurrences.length} blocks · ${fmtTime(now.getHours() * 60 + now.getMinutes())} right now`}
+    <div className="shell">
+      <div className="navbar">
+        <div className="navbrand">
+          <span className="navmark">M</span>
+          MyCAL
         </div>
-        <div className="legend">
-          {CATEGORIES.map((c) => (
-            // @ts-expect-error custom property
-            <i key={c} style={{ '--h': CATEGORY_META[c].hue }}>{CATEGORY_META[c].label}</i>
+
+        <div className="viewpick">
+          {['Day', 'Week', 'Month'].map((v) => (
+            <button key={v} className={v === 'Week' ? 'on' : ''}>{v}</button>
           ))}
+        </div>
+
+        <div className="navright">
+          <ThemeToggle />
+          <button className="btn ghost sm" onClick={() => setSyncOpen(true)}>Data</button>
+          <button className="btn ghost sm" onClick={() => setOnboarding(true)}>
+            {db.school.enabled ? 'My classes' : 'Set up school'}
+          </button>
+          <div className="avatar">A</div>
+          <button
+            className="btn solid"
+            onClick={() => {
+              const d = focusedDay !== null ? days[focusedDay] : now
+              const inWeek = days.some((x) => isSameDay(x, d))
+              setDraft({ date: dateKey(inWeek ? d : days[0]), startMin: 16 * 60, endMin: 17 * 60 })
+            }}
+          >
+            + Block
+          </button>
         </div>
       </div>
 
+      <div className="split">
+        <aside className="sidebar">
+          <div className="month">{fmtMonthRange(days)}</div>
+          <div className="minigrid">
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+              <div key={i} className="dowletter">{d}</div>
+            ))}
+            {(() => {
+              const first = new Date(days[0].getFullYear(), days[0].getMonth(), 1)
+              // Monday-first offset, so the numbers sit under the right letters.
+              const lead = (first.getDay() + 6) % 7
+              const count = new Date(days[0].getFullYear(), days[0].getMonth() + 1, 0).getDate()
+              const cells: React.ReactNode[] = []
+              for (let i = 0; i < lead; i++) cells.push(<div key={`b${i}`} className="miniday blank" />)
+              for (let n = 1; n <= count; n++) {
+                const d = new Date(days[0].getFullYear(), days[0].getMonth(), n)
+                const on = days.some((x) => isSameDay(x, d))
+                cells.push(
+                  <div
+                    key={n}
+                    className={`miniday ${on ? 'on' : ''}`}
+                    onClick={() => { setAnchor(startOfWeek(d)); setFocusedDay(null) }}
+                  >
+                    {n}
+                  </div>,
+                )
+              }
+              return cells
+            })()}
+          </div>
+
+          <div className="sidesection">
+            <span className="sidelabel">MY CALENDARS</span>
+            {CATEGORIES.map((c) => (
+              <div
+                key={c}
+                className="calrow"
+                onClick={() =>
+                  setShown((v) => (v.includes(c) ? v.filter((x) => x !== c) : [...v, c]))
+                }
+              >
+                {/* @ts-expect-error custom property */}
+                <div className={`calbox ${shown.includes(c) ? 'on' : ''}`} style={{ '--h': CATEGORY_META[c].hue }} />
+                <span>{CATEGORY_META[c].label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tasks live in the sidebar rather than over the grid: undated work
+              belongs beside the week, not on top of it, and the sidebar is the
+              one column with room to keep the list open. */}
+          <div className="sidesection sidetasks">
+            <TaskDock
+              tasks={db.tasks ?? []}
+              onSchedule={(t) => setPlacingTask({ id: t.id, text: t.text })}
+              onJumpTo={(seriesId, date) => {
+                const occ = occurrences.find((o) => o.series.id === seriesId && o.date === date)
+                // The block may be outside the loaded window if it was scheduled
+                // for another week, so move the calendar there first and let the
+                // week that renders carry the highlight.
+                if (occ) goToOccurrence(occ)
+                else {
+                  const d = parseKey(date)
+                  setAnchor(startOfWeek(d))
+                  setMobileDay(d.getDay() === 0 ? 6 : d.getDay() - 1)
+                  setFocusedDay(null)
+                }
+              }}
+            />
+          </div>
+        </aside>
+
+        <div className="viewport">
       {placingTask && (
         <div className="picking">
           <b>Drag when you’ll do “{placingTask.text}”</b>
@@ -196,24 +274,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      <TaskDock
-        tasks={db.tasks ?? []}
-        onSchedule={(t) => setPlacingTask({ id: t.id, text: t.text })}
-        onJumpTo={(seriesId, date) => {
-          const occ = occurrences.find((o) => o.series.id === seriesId && o.date === date)
-          // The block may be outside the loaded window if it was scheduled for
-          // another week, so move the calendar there first and let the week
-          // that renders carry the highlight.
-          if (occ) goToOccurrence(occ)
-          else {
-            const d = parseKey(date)
-            setAnchor(startOfWeek(d))
-            setMobileDay(d.getDay() === 0 ? 6 : d.getDay() - 1)
-            setFocusedDay(null)
-          }
-        }}
-      />
 
       {isMobile && (
         <WeekStrip
@@ -274,11 +334,13 @@ export default function App() {
         now={now}
       />
 
-      <div className="footer">
-        <span>Drag empty time to add — or double-click it</span>
-        <span>Click a block to write on that day</span>
-        <span>Double-click for everything else</span>
-        <span>Click a date to expand it</span>
+        <div className="footer">
+          <span>Drag empty time to add — or double-click it</span>
+          <span>Click a block to write on that day</span>
+          <span>Double-click for everything else</span>
+          <span>Click a date to expand it</span>
+        </div>
+        </div>
       </div>
 
       {inspect && (
