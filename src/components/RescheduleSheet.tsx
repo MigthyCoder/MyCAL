@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { Occurrence } from '../lib/occurrences'
 import { buildOccurrences } from '../lib/occurrences'
+import type { DayNote } from '../lib/types'
 import { getDB } from '../lib/store'
-import { fmtRange, fmtTime, parseKey } from '../lib/time'
+import { dateKey, fmtRange, fmtTime, parseKey } from '../lib/time'
 import { Sheet, TimeField } from './ui'
 
 interface Slot {
@@ -73,6 +74,8 @@ export interface ReschedDraft {
 
 export function RescheduleSheet({
   occ,
+  item,
+  whyInit,
   initial,
   onClose,
   onLandAt,
@@ -80,16 +83,34 @@ export function RescheduleSheet({
   onPickOnCalendar,
 }: {
   occ: Occurrence
+  /** Moving one planned line out of `occ` (a period), rather than `occ` itself.
+   *  The class never moves — only the work you'd parked in it. */
+  item?: DayNote
+  /** A reason already typed somewhere else, e.g. in the outcome sheet. */
+  whyInit?: string
   initial?: ReschedDraft | null
   onClose: () => void
   onLandAt: (date: string, startMin: number, durationMin: number, why: string) => void
   onDropInto: (target: Occurrence, why: string) => void
   onPickOnCalendar: (draft: ReschedDraft) => void
 }) {
-  const [date, setDate] = useState(initial?.date ?? occ.date)
+  // A day that's already over has no open time left to move anything into, so
+  // moving something out of last Wednesday starts from today, not from then.
+  const [date, setDate] = useState(() => {
+    const today = dateKey(new Date())
+    return initial?.date ?? (occ.date < today ? today : occ.date)
+  })
   const [start, setStart] = useState(initial?.startMin ?? occ.startMin)
-  const [duration, setDuration] = useState(initial?.durationMin ?? occ.endMin - occ.startMin)
-  const [why, setWhy] = useState(initial?.why ?? '')
+  const [duration, setDuration] = useState(
+    initial?.durationMin ?? (item ? 45 : occ.endMin - occ.startMin),
+  )
+  const [why, setWhy] = useState(initial?.why ?? whyInit ?? '')
+  const name = item?.text ?? occ.title
+  const wasDay = parseKey(occ.date).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  })
   // Typing an exact time is the rare case, so it stays folded away until asked
   // for. Nine times out of ten you want to look at the week and point at it.
   const [exact, setExact] = useState(Boolean(initial))
@@ -107,10 +128,15 @@ export function RescheduleSheet({
 
   return (
     <Sheet onClose={onClose}>
-      <h3>Move “{occ.title}”</h3>
+      <h3>Move “{name}”</h3>
       <div className="meta">
-        Was {parseKey(occ.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} ·{' '}
-        {fmtRange(occ.startMin, occ.endMin)}
+        {item ? (
+          <>Was planned in {occ.title} · {wasDay}</>
+        ) : (
+          <>
+            Was {wasDay} · {fmtRange(occ.startMin, occ.endMin)}
+          </>
+        )}
       </div>
 
       <h4>Why didn't it happen?</h4>
@@ -123,7 +149,10 @@ export function RescheduleSheet({
       />
       <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6, lineHeight: 1.5 }}>
         Optional, but this is the part that's actually worth reading back in three
-        months. The original block stays where it was, marked with where it went.
+        months.{' '}
+        {item
+          ? `The line stays in ${occ.title}, struck through with where it went. The class itself isn't touched.`
+          : 'The original block stays where it was, marked with where it went.'}
       </div>
 
       {/* The whole point of a calendar is that you can see the week. Pointing at

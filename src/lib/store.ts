@@ -72,6 +72,7 @@ function migrateReminders(parsed: DB): Pick<DB, 'series' | 'overrides' | 'remind
       anchorDate: r.date,
       createdAt: r.createdAt,
       pin: true,
+      allDay: true,
     })
     if (r.done) overrides.push({ seriesId: r.id, date: r.date, outcome: 'finished' })
   }
@@ -278,7 +279,7 @@ export function duplicateOccurrence(occ: Occurrence): Series {
     endMin: occ.endMin,
     recurrence: null,
     anchorDate: occ.date,
-    ...(occ.series.pin ? { pin: true } : {}),
+    ...(occ.series.pin ? { pin: true, allDay: occ.allDay } : {}),
     ...(occ.series.overlapReason ? { overlapReason: occ.series.overlapReason } : {}),
   })
 }
@@ -317,9 +318,11 @@ export function reschedule(
     defaultSubtitle: occ.notes.find((n) => !n.marker)?.text ?? occ.fallbackSubtitle,
     location: occ.series.location,
     startMin: toStartMin,
-    endMin: toStartMin + duration,
+    endMin: occ.series.pin ? toStartMin : toStartMin + duration,
     recurrence: null,
     anchorDate: toDate,
+    ...(occ.series.pin ? { pin: true } : {}),
+    ...(occ.series.due ? { due: occ.series.due } : {}),
   })
   patchOverride(occ.series.id, occ.date, {
     outcome: 'rescheduled',
@@ -388,18 +391,135 @@ export function moveOccurrenceToDate(occ: Occurrence, toDate: string, startMin: 
     endMin: startMin + duration,
     recurrence: null,
     anchorDate: toDate,
+    ...(occ.series.pin ? { pin: true, allDay: occ.allDay } : {}),
+    ...(occ.series.due ? { due: occ.series.due } : {}),
+  })
+}
+
+/** The period's notes as they are right now — not as they were when the sheet
+ *  that's calling this was opened. Two writes to one period in a row must not
+ *  have the second one quietly undo the first. */
+function freshNotes(period: Occurrence): DayNote[] {
+  return (
+    db.overrides.find((o) => o.seriesId === period.series.id && o.date === period.date)?.notes ??
+    period.notes
+  )
+}
+
+function markItemMoved(
+  period: Occurrence,
+  noteId: string,
+  movedTo: { date: string; startMin: number },
+  why: string,
+) {
+  setDayNotes(
+    period,
+    freshNotes(period).map((n) =>
+      n.id === noteId
+        ? { ...n, done: 'rescheduled' as const, movedTo, ...(why.trim() ? { why: why.trim() } : {}) }
+        : n,
+    ),
+  )
+}
+
+/**
+ * Take one piece of work back OUT of a period — the wifi's down, it isn't
+ * happening in Adulting after all. The line stays where it was, struck through
+ * with where it went, exactly like a block you moved. The period itself is never
+ * touched: you don't reschedule a class.
+ */
+export function rescheduleItem(
+  period: Occurrence,
+  noteId: string,
+  toDate: string,
+  startMin: number,
+  why: string,
+  durationMin: number,
+): Series | null {
+  const note = period.notes.find((n) => n.id === noteId)
+  if (!note) return null
+  const copy = addSeries({
+    title: note.text,
+    kind: 'task',
+    category: 'school',
+    schoolRole: null,
+    startMin,
+    endMin: startMin + durationMin,
+    recurrence: null,
+    anchorDate: toDate,
+  })
+  markItemMoved(period, noteId, { date: toDate, startMin }, why)
+  return copy
+}
+
+/** Same thing, but into a different period instead of onto open time. */
+export function rescheduleItemIntoPeriod(
+  period: Occurrence,
+  noteId: string,
+  target: Occurrence,
+  why: string,
+) {
+  const note = period.notes.find((n) => n.id === noteId)
+  if (!note || target.key === period.key) return
+  setDayNotes(target, [...target.notes, newPlanItem(note.text)])
+  markItemMoved(period, noteId, { date: target.date, startMin: target.startMin }, why)
+}
+
+/** Give a to-do a moment on the grid — or pass null to send it back up to the
+ *  top of its day. */
+export function setPinTime(occ: Occurrence, startMin: number | null) {
+  const allDay = startMin === null
+  const at = startMin ?? occ.startMin
+  if (!occ.series.recurrence) updateSeries(occ.series.id, { allDay, startMin: at, endMin: at })
+  else patchOverride(occ.series.id, occ.date, { allDay, startMin: at, endMin: at })
+}
+
+/**
+ * Put a to-do on a day — at a moment, or with null up at the top with no time.
+ * One call, because dragging it out of Tuesday's header into Wednesday at 3 PM
+ * is one move, not a move and then a retime.
+ */
+export function placePin(occ: Occurrence, date: string, startMin: number | null) {
+  const allDay = startMin === null
+  const at = startMin ?? occ.startMin
+  if (!occ.series.recurrence) {
+    updateSeries(occ.series.id, { anchorDate: date, allDay, startMin: at, endMin: at })
+    return
+  }
+  if (date === occ.date) {
+    patchOverride(occ.series.id, occ.date, { allDay, startMin: at, endMin: at })
+    return
+  }
+  // A repeating to-do carried to another day: lift just this one out.
+  patchOverride(occ.series.id, occ.date, { cancelled: true })
+  addSeries({
+    title: occ.title,
+    kind: occ.series.kind,
+    category: occ.series.category,
+    schoolRole: null,
+    pin: true,
+    allDay,
+    startMin: at,
+    endMin: at,
+    recurrence: null,
+    anchorDate: date,
+  })
+}
+
+/** Set or clear when a task is due. */
+export function setDue(seriesId: string, due: { date: string; startMin?: number } | null) {
+  commit({
+    ...db,
+    series: db.series.map((s) => {
+      if (s.id !== seriesId) return s
+      if (due) return { ...s, due }
+      const { due: _gone, ...rest } = s
+      return rest
+    }),
   })
 }
 
 // ------------------------------------------------------------------ misc
-
-// ------------------------------------------------------------------- pins
-
-/** Where a new to-do lands: below everything already on that day. */
-export function endOfDayFor(occupiedEndMins: number[]): number {
-  const last = occupiedEndMins.length ? Math.max(...occupiedEndMins) : 0
-  return Math.max(END_OF_DAY_MIN, Math.min(last + 20, 23 * 60 + 30))
-}
 
 export function setOnboarded(v: boolean) {
   commit({ ...db, onboarded: v })

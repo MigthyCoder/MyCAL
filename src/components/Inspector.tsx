@@ -8,11 +8,13 @@ import {
   clearOutcome,
   deleteSeries,
   patchOverride,
+  setDue,
   setOutcome,
+  setPinTime,
   unsetOverrideFields,
   updateSeries,
 } from '../lib/store'
-import { fmtRange, fmtTime, parseKey } from '../lib/time'
+import { fmtDur, fmtRange, fmtTime, parseKey } from '../lib/time'
 import { CategoryPicker, DayPicker, Seg, Sheet, TimeField } from './ui'
 import { FLEX_OPTIONS } from '../lib/seed'
 import { newNote, newPlanItem, setDayNotes } from '../lib/store'
@@ -23,11 +25,17 @@ export function Inspector({
   onClose,
   onAskReschedule,
   onAddAlongside,
+  onMoveItem,
+  onPickDue,
 }: {
   occ: Occurrence
   onClose: () => void
   onAskReschedule: () => void
   onAddAlongside: () => void
+  /** Move one planned line back out of this block. */
+  onMoveItem: (item: DayNote) => void
+  /** Choose this task's due date by tapping the calendar. */
+  onPickDue: () => void
 }) {
   const s = occ.series
   const isFlex = s.schoolRole === 'flex'
@@ -45,6 +53,11 @@ export function Inspector({
   const [overlap, setOverlap] = useState(s.overlapReason ?? '')
   const [start, setStart] = useState(occ.startMin)
   const [end, setEnd] = useState(occ.endMin)
+  const [pinAllDay, setPinAllDay] = useState(occ.allDay)
+  const [dueOn, setDueOn] = useState(s.due?.date ?? '')
+  const [dueAt, setDueAt] = useState<number | null>(s.due?.startMin ?? null)
+  /** A line can only be moved once it's actually been saved into the block. */
+  const saved = (n: DayNote) => occ.notes.some((x) => x.id === n.id)
 
   /** Everything typed into this sheet, written back. The outcome buttons call
    *  this too — otherwise hitting "Finished" would silently discard your note. */
@@ -72,9 +85,19 @@ export function Inspector({
       updateSeries(s.id, { overlapReason: overlap.trim().toUpperCase() || undefined })
     }
 
-    if (start !== occ.startMin || end !== occ.endMin) {
+    if (occ.pin) {
+      if (pinAllDay !== occ.allDay || (!pinAllDay && start !== occ.startMin)) {
+        setPinTime(occ, pinAllDay ? null : start)
+      }
+    } else if (start !== occ.startMin || end !== occ.endMin) {
       if (s.recurrence) patchOverride(s.id, occ.date, { startMin: start, endMin: end })
       else updateSeries(s.id, { startMin: start, endMin: end })
+    }
+
+    if (!occ.generated && s.kind === 'task') {
+      const at = dueOn ? dueAt : null
+      const same = (s.due?.date ?? '') === dueOn && (s.due?.startMin ?? null) === at
+      if (!same) setDue(s.id, dueOn ? { date: dueOn, ...(at !== null ? { startMin: at } : {}) } : null)
     }
   }
 
@@ -141,12 +164,14 @@ export function Inspector({
                   onClick={() =>
                     setNotes((ns) =>
                       ns.map((x, j) =>
-                        j === i ? { ...x, task: true, done: x.done ? undefined : 'finished' } : x,
+                        j === i && x.done !== 'rescheduled'
+                          ? { ...x, task: true, done: x.done ? undefined : 'finished' }
+                          : x,
                       ),
                     )
                   }
                 >
-                  {n.done ? '✓' : i + 1}
+                  {n.done === 'rescheduled' ? '→' : n.done ? '✓' : i + 1}
                 </button>
                 <input
                   className="field"
@@ -185,6 +210,14 @@ export function Inspector({
                   }
                 >
                   ↓
+                </button>
+                <button
+                  className="rowx move"
+                  title={saved(n) ? 'Move this somewhere else' : 'Save it first'}
+                  disabled={!saved(n) || n.done === 'rescheduled'}
+                  onClick={() => { persist(); onMoveItem(n) }}
+                >
+                  ↗
                 </button>
                 <button
                   className="rowx"
@@ -231,11 +264,15 @@ export function Inspector({
                     title={n.done ? 'Not done after all' : 'Mark done'}
                     onClick={() =>
                       setNotes((ns) =>
-                        ns.map((x, j) => (j === i ? { ...x, done: x.done ? undefined : 'finished' } : x)),
+                        ns.map((x, j) =>
+                          j === i && x.done !== 'rescheduled'
+                            ? { ...x, done: x.done ? undefined : 'finished' }
+                            : x,
+                        ),
                       )
                     }
                   >
-                    {n.done ? '✓' : ''}
+                    {n.done === 'rescheduled' ? '→' : n.done ? '✓' : ''}
                   </button>
                 )}
                 <select
@@ -280,6 +317,16 @@ export function Inspector({
                     if (e.key === 'Enter') setNotes((ns) => [...ns, newNote()])
                   }}
                 />
+                {n.task && (
+                  <button
+                    className="rowx move"
+                    title={saved(n) ? 'Move this somewhere else' : 'Save it first'}
+                    disabled={!saved(n) || n.done === 'rescheduled'}
+                    onClick={() => { persist(); onMoveItem(n) }}
+                  >
+                    ↗
+                  </button>
+                )}
                 <button
                   className="rowx"
                   title="Remove"
@@ -297,16 +344,72 @@ export function Inspector({
       )}
 
 
-      <h4>{occ.pin ? 'When' : 'Time'}</h4>
-      <div className="row">
-        <TimeField value={start} onChange={(v) => { setStart(v); if (occ.pin) setEnd(v) }} />
-        {!occ.pin && (
-          <>
+      {occ.pin ? (
+        <>
+          <h4>When</h4>
+          {/* A to-do with no time sits at the top of its day. Giving it one puts
+              it on the grid; taking it away sends it back up. */}
+          <Seg
+            value={pinAllDay ? 'none' : 'at'}
+            options={[
+              { value: 'none' as const, label: 'No set time' },
+              { value: 'at' as const, label: 'At a time' },
+            ]}
+            onChange={(v) => setPinAllDay(v === 'none')}
+          />
+          {!pinAllDay && (
+            <div className="row" style={{ marginTop: 8 }}>
+              <TimeField value={start} onChange={(v) => { setStart(v); setEnd(v) }} />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <h4>
+            Time <span className="h4dur">{fmtDur(end - start)}</span>
+          </h4>
+          <div className="row">
+            <TimeField value={start} onChange={setStart} />
             <span style={{ color: 'var(--text-3)' }}>to</span>
             <TimeField value={end} onChange={setEnd} />
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
+
+      {!occ.generated && s.kind === 'task' && (
+        <>
+          <h4>Due</h4>
+          <div className="row">
+            <input
+              className="field grow"
+              type="date"
+              value={dueOn}
+              onChange={(e) => setDueOn(e.target.value)}
+            />
+            {dueOn &&
+              (dueAt === null ? (
+                <button className="btn ghost" onClick={() => setDueAt(12 * 60)}>+ Time</button>
+              ) : (
+                <>
+                  <TimeField value={dueAt} onChange={setDueAt} />
+                  <button className="btn ghost sm" onClick={() => setDueAt(null)}>Any time</button>
+                </>
+              ))}
+            {dueOn && (
+              <button className="rowx" title="No due date" onClick={() => { setDueOn(''); setDueAt(null) }}>
+                ×
+              </button>
+            )}
+          </div>
+          <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => { persist(); onPickDue() }}>
+            Pick it on the calendar
+          </button>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6, lineHeight: 1.5 }}>
+            Tap a class or a meeting and it's due during that — it shows up inside
+            that block. With no time, it sits at the top of the day.
+          </div>
+        </>
+      )}
 
       {!occ.generated && !occ.pin && (
         <>
@@ -320,7 +423,7 @@ export function Inspector({
         </>
       )}
 
-      {occ.requiresOutcome && !isFlex && (
+      {s.kind === 'task' && occ.requiresOutcome && !isFlex && (
         <>
           <h4>Outcome</h4>
           {occ.outcome ? (
@@ -341,7 +444,7 @@ export function Inspector({
         </>
       )}
 
-      {!occ.requiresOutcome && !isFlex && (
+      {s.kind !== 'task' && !isFlex && (
         <>
           <h4>What happened</h4>
           <textarea

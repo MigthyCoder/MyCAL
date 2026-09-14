@@ -155,7 +155,22 @@ export function layoutDay(all: Occurrence[], pxPerMin = 1): Placed[] {
     const top = (o.startMin - DAY_START_MIN) * pxPerMin
     const pinOffset = top < lastBottom ? lastBottom - top : 0
     lastBottom = top + pinOffset + PIN_H + 2
-    return { occ: o, left: 0, width: 1, cols: 1, rider: false, stacked: 0, pinOffset }
+    // A to-do lying across a block steps in a little, the way a rider does, so a
+    // stripe of the block shows beside it. The to-do is what gives way — a
+    // to-do never shoves a block.
+    const host = occs.find(
+      (b) => b.startMin <= o.startMin && o.startMin < Math.max(b.endMin, b.startMin + MIN_VISUAL_MIN),
+    )
+    return {
+      occ: o,
+      left: 0,
+      width: 1,
+      cols: 1,
+      rider: Boolean(host),
+      hostKey: host?.key,
+      stacked: 0,
+      pinOffset,
+    }
   })
   if (occs.length === 0) return pinned
 

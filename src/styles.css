@@ -1572,3 +1572,376 @@ textarea.field { resize: vertical; min-height: 62px; line-height: 1.45; }
   .noterow.istask { grid-template-columns: 30px 112px 1fr 30px; }
   .noterow .rank { height: 30px; }
 }
+
+/* ============================================================ time you think in
+
+   Every place a length is being chosen says it in hours and minutes. "2h" is the
+   number in your head; "12:55–2:55" is arithmetic. */
+
+.dragghost { flex-direction: column; gap: 1px; padding: 0 6px; text-align: center; }
+.dragghost b {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dragghost span { font-size: 10.5px; color: var(--text-2); white-space: nowrap; }
+.dragghost.live b { color: var(--now); font-size: 15px; }
+.dragghost.pinghost {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 9px;
+  border-radius: 0 5px 5px 0;
+  border-width: 0;
+  border-top: 1.5px dashed var(--now);
+  background: rgba(255, 122, 69, 0.14);
+}
+.dragghost.pinghost b { font-size: 11.5px; font-weight: 600; color: var(--text); }
+.dragghost.pinghost span { color: var(--now); font-weight: 600; }
+
+/* Floats above a block while it's being dragged or stretched. */
+.durbadge {
+  position: absolute;
+  top: -1px;
+  right: 6px;
+  transform: translateY(-100%);
+  z-index: 3;
+  padding: 3px 8px;
+  border-radius: 7px 7px 0 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #1a0c05;
+  background: var(--now);
+  box-shadow: 0 -4px 14px rgba(255, 122, 69, 0.35);
+  pointer-events: none;
+}
+/* The badge sits above the block, so the block has to let it out. */
+.block:has(.durbadge) { overflow: visible; }
+
+.sheet h4 .h4dur {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--raised);
+  font-variant-numeric: tabular-nums;
+}
+
+.durchips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.durchips button {
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--line-mid);
+  background: var(--bg);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.durchips button:hover { background: var(--raised); color: var(--text); }
+.durchips button[aria-pressed='true'] { border-color: var(--line-strong); background: var(--raised); color: var(--text); }
+
+/* ================================================== the top of the day
+
+   To-dos with no time and deadlines with no time. On a desktop they live in the
+   day's header, right under the date; on a phone, in a row above the grid. */
+
+.allday {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 7px;
+  max-height: 84px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.allday::-webkit-scrollbar { display: none; }
+
+.adpin, .addue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+  padding: 3px 6px 3px 5px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+  line-height: 1.25;
+}
+.adpin > span, .addue > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.adpin {
+  cursor: grab;
+  color: hsl(var(--h) 45% 90%);
+  background: linear-gradient(90deg, hsl(var(--h) 45% 22% / 0.9), hsl(var(--h) 45% 17% / 0.5));
+  border-left: 2px solid hsl(var(--h) 60% 60%);
+  transition: filter .12s, opacity .12s;
+}
+.adpin:hover { filter: brightness(1.25); }
+.adpin:active { cursor: grabbing; }
+.adpin .pindot { width: 11px; height: 11px; border-radius: 3px; }
+.adpin.needs { border-left-color: var(--warn); }
+.adpin.needs .pindot { border-color: var(--warn); }
+.adpin.finished { opacity: 0.5; }
+.adpin.finished > span { text-decoration: line-through; }
+.adpin.finished .pindot { background: var(--ok); border-color: var(--ok); }
+.adpin.dropped, .adpin.rescheduled { opacity: 0.4; }
+.adpin.dropped > span { text-decoration: line-through; }
+.adpin.lifted { opacity: 0.35; }
+
+.addue {
+  color: #ffd98a;
+  background: rgba(255, 176, 32, 0.1);
+  border: 1px solid rgba(255, 176, 32, 0.3);
+}
+.addue i {
+  flex: none;
+  font-style: normal;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #1f1300;
+  background: var(--warn);
+}
+.addue:hover { background: rgba(255, 176, 32, 0.18); }
+.addue.done { opacity: 0.45; }
+.addue.done > span { text-decoration: line-through; }
+
+/* Carrying a to-do up over a header, to take its time away. */
+.dayhead .cell.adtarget {
+  background: rgba(255, 122, 69, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 122, 69, 0.55);
+}
+/* Choosing a due date: every header is a "no particular time" target. */
+.dayhead .cell.duepick { cursor: copy; }
+.dayhead .cell.duepick:hover { background: rgba(255, 176, 32, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 176, 32, 0.45); }
+
+/* The phone's top of the day. */
+.adrow {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line-mid);
+  background: var(--panel);
+  animation: railin .16s ease-out;
+}
+.adrow::-webkit-scrollbar { display: none; }
+.adrow .adpin, .adrow .addue { width: auto; max-width: 70%; flex: none; font-size: 13.5px; padding: 8px 11px 8px 9px; border-radius: 8px; gap: 8px; }
+.adrow .adpin .pindot { width: 18px; height: 18px; border-radius: 5px; }
+.adrow .addue i { font-size: 9.5px; }
+.adrow .adhint { align-self: center; font-size: 12.5px; color: var(--text-3); white-space: nowrap; padding: 6px 2px; }
+.adrow.target { background: rgba(255, 122, 69, 0.12); box-shadow: inset 0 0 0 1.5px rgba(255, 122, 69, 0.6); }
+.adrow.target .adhint { color: var(--now); }
+.adrow.duepick { cursor: copy; background: rgba(255, 176, 32, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 176, 32, 0.4); }
+.adrow.duepick .adhint { color: #ffc964; }
+
+/* ================================================================ deadlines */
+
+/* A deadline landing while you're in a block, drawn inside that block. */
+.block .sub.duelink {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.block .sub.duelink:hover { text-decoration: underline; text-underline-offset: 2px; }
+.block .sub.duelink.duedone { opacity: 0.5; text-decoration: line-through; }
+@media (max-width: 760px) { .block .sub.duelink { font-size: 12px; } }
+
+/* A deadline with a time and nothing on the calendar to sit inside. */
+.dueline {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  z-index: 7;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 0;
+  border-top: 1.5px solid var(--warn);
+  background: linear-gradient(90deg, rgba(255, 176, 32, 0.2), rgba(255, 176, 32, 0));
+  font-size: 11px;
+  color: #ffd98a;
+  text-align: left;
+  cursor: pointer;
+}
+.dueline i {
+  flex: none;
+  font-style: normal;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 1px 4px;
+  border-radius: 0 0 3px 0;
+  color: #1f1300;
+  background: var(--warn);
+}
+.dueline span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dueline em { flex: none; font-style: normal; font-size: 10px; opacity: 0.8; font-variant-numeric: tabular-nums; }
+.dueline.done { opacity: 0.45; }
+.dueline.done span { text-decoration: line-through; }
+
+/* ================================================= moved lines, in a block */
+
+.block .todo.rescheduled > span { opacity: 0.5; text-decoration: line-through; }
+.block .todo.rescheduled .tick { border-style: dashed; cursor: default; font-size: 9px; }
+.block .todo .movedto { font-style: normal; text-decoration: none; display: inline-block; color: hsl(var(--h) 30% 72%); }
+.noterow.rescheduled input { opacity: 0.5; text-decoration: line-through; }
+.noterow.rescheduled .rank { border-style: dashed; cursor: default; }
+.rowx.move { font-size: 13px; }
+.rowx.move:hover:not(:disabled) { background: rgba(255, 176, 32, 0.15); color: var(--warn); }
+
+/* One more box per row, for Move. */
+.noterow.plan { grid-template-columns: 28px 1fr 26px 26px 26px 26px; }
+.noterow.istask { grid-template-columns: 26px 104px 1fr 26px 26px; }
+@media (max-width: 760px) {
+  .noterow.plan { grid-template-columns: 30px 1fr 30px 30px 30px 30px; }
+  .noterow.istask { grid-template-columns: 30px 104px 1fr 30px 30px; }
+}
+
+/* ============================================================ outcome sheet
+
+   Not the editor. One question, and the ways to answer it, as big as they need
+   to be to hit without looking. */
+
+.oc-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #1f1300;
+  background: var(--warn);
+}
+.oc-kicker.ok { color: #06251a; background: var(--ok); }
+
+.oc-big { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
+.oc-big button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px 14px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line-mid);
+  background: var(--bg);
+  text-align: left;
+  transition: background .13s, border-color .13s, transform .1s;
+}
+.oc-big button b { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.oc-big button span { font-size: 11.5px; color: var(--text-3); }
+.oc-big button:active { transform: scale(0.97); }
+.oc-big .fin b { color: var(--ok); }
+.oc-big .res b { color: var(--warn); }
+.oc-big .drop b { color: #ff8f8f; }
+.oc-big .fin:hover { background: rgba(62, 207, 142, 0.1); border-color: rgba(62, 207, 142, 0.5); }
+.oc-big .res:hover { background: rgba(255, 176, 32, 0.1); border-color: rgba(255, 176, 32, 0.5); }
+.oc-big .drop:hover { background: rgba(255, 90, 90, 0.09); border-color: rgba(255, 90, 90, 0.45); }
+
+.oc-items { display: flex; flex-direction: column; gap: 6px; }
+.oc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-mid);
+  background: var(--bg);
+}
+.oc-text { flex: 1; min-width: 0; font-size: 14px; line-height: 1.35; }
+.oc-text b { margin-right: 8px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.oc-text em { font-style: normal; color: var(--text-3); }
+.oc-item.finished .oc-text, .oc-item.dropped .oc-text, .oc-item.rescheduled .oc-text { opacity: 0.55; text-decoration: line-through; }
+.oc-item.finished { border-color: rgba(62, 207, 142, 0.3); }
+
+.oc-mini { display: flex; gap: 4px; flex: none; }
+.oc-mini button {
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line-mid);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition: background .12s, border-color .12s, color .12s;
+}
+.oc-mini .fin:hover { color: var(--ok); border-color: rgba(62, 207, 142, 0.5); background: rgba(62, 207, 142, 0.1); }
+.oc-mini .res:hover { color: var(--warn); border-color: rgba(255, 176, 32, 0.5); background: rgba(255, 176, 32, 0.1); }
+.oc-mini .drop:hover { color: #ff8f8f; border-color: rgba(255, 90, 90, 0.45); background: rgba(255, 90, 90, 0.09); }
+.oc-undo { flex: none; font-size: 12px; color: var(--text-3); padding: 6px 8px; border-radius: 6px; }
+.oc-undo:hover { color: var(--text); background: var(--raised); }
+.oc-state { flex: none; font-size: 12px; color: var(--text-3); padding: 6px 8px; }
+
+.oc-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.oc-choices button {
+  padding: 9px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--line-mid);
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.oc-choices button:hover { background: var(--raised); color: var(--text); }
+
+@media (max-width: 760px) {
+  .oc-big button { padding: 16px 12px 14px; }
+  .oc-big button b { font-size: 17px; }
+  .oc-mini button { padding: 10px 11px; font-size: 13.5px; }
+  .oc-text { font-size: 15px; }
+  .oc-item { flex-wrap: wrap; }
+  .oc-item .oc-mini { width: 100%; }
+  .oc-item .oc-mini button { flex: 1; }
+}
+
+/* ============================================================ the phone's week strip
+
+   Three weeks, each a full-width page that snaps. It scrolls like every strip of
+   dates on a phone does; the component quietly re-centres so it never ends. */
+
+.strip {
+  display: flex;
+  gap: 0;
+  padding: 0 0 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.strip::-webkit-scrollbar { display: none; }
+.stripweek {
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 0 12px;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}

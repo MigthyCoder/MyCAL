@@ -90,3 +90,13 @@ export function snap(min: number, step = 5): number {
 export function clampMin(min: number): number {
   return Math.max(DAY_START_MIN, Math.min(DAY_END_MIN, min))
 }
+
+/** "45m", "1h", "1h 30m" — how long, in the words you actually think it in.
+ *  "2h" is easier to hold in your head than "12:55–2:55". */
+export function fmtDur(min: number): string {
+  const m = Math.max(0, Math.round(min))
+  const h = Math.floor(m / 60)
+  const r = m % 60
+  if (h === 0) return `${r}m`
+  return r === 0 ? `${h}h` : `${h}h ${r}m`
+}

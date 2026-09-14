@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Occurrence } from '../lib/occurrences'
+import type { DueMark, Occurrence, PlacedDues } from '../lib/occurrences'
 import { layoutDay } from '../lib/layout'
 import {
   DAY_END_MIN,
@@ -7,6 +7,7 @@ import {
   clampMin,
   dateKey,
   fmtDayLabel,
+  fmtDur,
   fmtRange,
   fmtTime,
   fmtTimeShort,
@@ -15,8 +16,15 @@ import {
   snap,
 } from '../lib/time'
 import { BlockCard, RAIL_W, type DragMode } from './BlockCard'
-import { moveOccurrenceToDate, reshapeOccurrence } from '../lib/store'
+import {
+  clearOutcome,
+  moveOccurrenceToDate,
+  placePin,
+  reshapeOccurrence,
+  setOutcome,
+} from '../lib/store'
 import { SCHEDULES, scheduleIdFor } from '../lib/bell'
+import { CATEGORY_META } from '../lib/seed'
 
 const HOURS = Array.from(
   { length: Math.floor((DAY_END_MIN - DAY_START_MIN) / 60) + 1 },
@@ -27,15 +35,42 @@ const HOURS = Array.from(
 const DEFAULT_LEN = 45
 /** Finger slop before a press counts as a drag rather than a tap. */
 const SLOP = 9
+/** The add-alongside rail only appears once you've deliberately rested on a
+ *  block — never just because the cursor happened to pass over it. */
+const RAIL_DWELL = 380
+/** …and never in the moment after you've dropped something. Your cursor is still
+ *  sitting on whatever you dropped it next to, and a strip fading in over that
+ *  block right then reads as the block being shoved aside. */
+const RAIL_QUIET = 900
+const PIN_H = 26
 
 type Drag =
   | { kind: 'create'; day: number; a: number; b: number }
-  | { kind: 'move'; occ: Occurrence; grabMin: number; day: number; start: number; moved: boolean }
+  | {
+      kind: 'move'
+      occ: Occurrence
+      grabMin: number
+      day: number
+      start: number
+      moved: boolean
+      /** A to-do carried up over a day's header, to lose its time. */
+      head: number | null
+    }
   | { kind: 'resize'; occ: Occurrence; edge: 'top' | 'bottom'; start: number; end: number }
+  | {
+      /** A to-do dragged down out of the top of its day, to be given a time. */
+      kind: 'place'
+      occ: Occurrence
+      day: number
+      start: number
+      overGrid: boolean
+      head: number | null
+      moved: boolean
+    }
 
-/** The same three gestures, driven by a finger. Touch keeps its own state because
- *  it has to decide, mid-gesture, whether you meant to drag at all — a mouse
- *  tells you that with a button, a finger only tells you by moving. */
+/** The same gestures, driven by a finger. Touch keeps its own state because it
+ *  has to decide, mid-gesture, whether you meant to drag at all — a mouse tells
+ *  you that with a button, a finger only tells you by moving. */
 type Touch =
   | {
       kind: 'lift'
@@ -44,7 +79,11 @@ type Touch =
       grabMin: number
       x: number
       y: number
-      over: number | null
+      /** The strip chip under your finger, by date. */
+      over: string | null
+      overGrid: boolean
+      /** Over the row of untimed to-dos at the top of the day. */
+      overTop: boolean
     }
   | {
       kind: 'resize'
@@ -61,11 +100,8 @@ type Touch =
 interface Props {
   pxPerMin: number
   isMobile: boolean
-  /** The whole week, even when the grid is only drawing one day of it — a chip
-   *  in the strip is how you drop something onto another day. */
-  weekAll: Date[]
-  /** Reports which strip chip a lifted block is over, so it can light up. */
-  onDropTarget: (i: number | null) => void
+  /** Reports which strip day a lifted block is over, so it can light up. */
+  onDropTarget: (date: string | null) => void
   onSwipeDay: (dir: 1 | -1) => void
   schoolEnabled: boolean
   dayOverrides: Record<string, string>
@@ -78,24 +114,43 @@ interface Props {
   onFocusDay: (i: number | null) => void
   onOpenInspector: (occ: Occurrence) => void
   onCreate: (draft: { date: string; startMin: number; endMin: number }) => void
-  /** Set while you're choosing a landing spot for something you're moving. One
-   *  tap is the whole gesture then — no long press, no sheet. */
-  picking: boolean
-  /** Tapped a school period while picking: the work goes inside it. */
-  onDropIntoPeriod: (occ: Occurrence) => void
+  /**
+   * What a tap on the grid means right now. `move`: where something you're
+   * rescheduling goes. `due`: when a task is due. One tap is the whole gesture
+   * either way — no long press, no sheet.
+   */
+  pickMode: 'move' | 'due' | null
+  /** Tapped a block while picking. */
+  onPickBlock: (occ: Occurrence) => void
+  /** Tapped the top of a day while picking a due date: due that day, any time. */
+  onPickAllDay: (date: string) => void
   /** How long the thing you're placing is, so tapping a spot keeps its length
    *  instead of resizing it to some default you never asked for. */
   pickLen: number
+  dues: PlacedDues
+  onOpenDue: (m: DueMark) => void
   now: Date
 }
 
 /** A period you can drop work into rather than on top of. */
 const isPeriod = (o: Occurrence) => Boolean(o.series.schoolRole) && !o.pin
 
+const inside = (el: Element | null, x: number, y: number) => {
+  if (!el) return false
+  const r = el.getBoundingClientRect()
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
+}
+
+const stateClass = (o: Occurrence) =>
+  o.state === 'needs-outcome'
+    ? 'needs'
+    : o.state === 'finished' || o.state === 'dropped' || o.state === 'rescheduled' || o.state === 'past'
+      ? o.state
+      : ''
+
 export function WeekGrid({
   pxPerMin,
   isMobile,
-  weekAll,
   onDropTarget,
   onSwipeDay,
   schoolEnabled,
@@ -109,16 +164,22 @@ export function WeekGrid({
   onFocusDay,
   onOpenInspector,
   onCreate,
-  picking,
-  onDropIntoPeriod,
+  pickMode,
+  onPickBlock,
+  onPickAllDay,
   pickLen,
+  dues,
+  onOpenDue,
   now,
 }: Props) {
   const colRefs = useRef<(HTMLDivElement | null)[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
+  const headRef = useRef<HTMLDivElement>(null)
+  const topRowRef = useRef<HTMLDivElement>(null)
   const scrolled = useRef(false)
   const [drag, setDrag] = useState<Drag | null>(null)
   const [hoverKey, setHoverKey] = useState<string | null>(null)
+  const [railKey, setRailKey] = useState<string | null>(null)
   const [railY, setRailY] = useState(0)
   const swipe = useRef<{ x: number; y: number } | null>(null)
   const [touch, setTouch] = useState<Touch | null>(null)
@@ -130,6 +191,8 @@ export function WeekGrid({
   // A gesture that did something must not also fire the click that follows it.
   // Otherwise every drag ends by opening the sheet for the thing you just moved.
   const handled = useRef(false)
+  const lastGesture = useRef(0)
+  const lastEdge = useRef(0)
   const GRID_H = (DAY_END_MIN - DAY_START_MIN) * pxPerMin
   const dragRef = useRef<Drag | null>(null)
   dragRef.current = drag
@@ -142,11 +205,16 @@ export function WeekGrid({
     scrollRef.current.scrollTop = Math.max(0, target)
   }, [now, pxPerMin])
 
-  const byDay = useMemo(() => {
-    const m = new Map<string, Occurrence[]>()
-    for (const d of days) m.set(dateKey(d), [])
-    for (const o of occurrences) m.get(o.date)?.push(o)
-    return m
+  // Untimed to-dos live above the grid, so they're kept out of its layout.
+  const { byDay, topByDay } = useMemo(() => {
+    const grid = new Map<string, Occurrence[]>()
+    const top = new Map<string, Occurrence[]>()
+    for (const d of days) {
+      grid.set(dateKey(d), [])
+      top.set(dateKey(d), [])
+    }
+    for (const o of occurrences) (o.allDay ? top : grid).get(o.date)?.push(o)
+    return { byDay: grid, topByDay: top }
   }, [days, occurrences])
 
   // Focused day gets ~2.6x the width; the rest stay equal. Same track count in
@@ -184,8 +252,21 @@ export function WeekGrid({
   /** Swallow the click that a completed gesture is about to produce. */
   const markHandled = () => {
     handled.current = true
+    lastGesture.current = Date.now()
     setTimeout(() => { handled.current = false }, 350)
   }
+
+  // The rail waits for a deliberate hover, and stays away right after a drop.
+  useEffect(() => {
+    if (!hoverKey || drag || touch || pickMode) {
+      setRailKey(null)
+      return
+    }
+    setRailKey((k) => (k === hoverKey ? k : null))
+    const quiet = RAIL_QUIET - (Date.now() - lastGesture.current)
+    const t = setTimeout(() => setRailKey(hoverKey), Math.max(RAIL_DWELL, quiet))
+    return () => clearTimeout(t)
+  }, [hoverKey, drag, touch, pickMode])
 
   // ------------------------------------------------------------------ mouse
 
@@ -198,14 +279,19 @@ export function WeekGrid({
       if (!d) return
       if (d.kind === 'create') setDrag({ ...d, b: pt.min })
       else if (d.kind === 'move') {
-        const start = clampMin(snap(pt.min - d.grabMin))
-        setDrag({ ...d, day: pt.day, start, moved: true })
+        const head = d.occ.pin && inside(headRef.current, e.clientX, e.clientY) ? pt.day : null
+        setDrag({ ...d, day: pt.day, start: clampMin(snap(pt.min - d.grabMin)), moved: true, head })
+      } else if (d.kind === 'place') {
+        const overGrid = inside(scrollRef.current, e.clientX, e.clientY)
+        const head = !overGrid && inside(headRef.current, e.clientX, e.clientY) ? pt.day : null
+        setDrag({ ...d, day: pt.day, start: pt.min, overGrid, head, moved: true })
       } else if (d.edge === 'bottom') setDrag({ ...d, end: Math.max(pt.min, d.start + 10) })
       else setDrag({ ...d, start: Math.min(pt.min, d.end - 10) })
     }
     const onUp = () => {
       const d = dragRef.current
       setDrag(null)
+      lastGesture.current = Date.now()
       if (!d) return
       if (d.kind === 'create') {
         const a = Math.min(d.a, d.b)
@@ -219,10 +305,19 @@ export function WeekGrid({
       } else if (d.kind === 'move') {
         if (!d.moved) return
         markHandled()
+        if (d.head !== null) { placePin(d.occ, dateKey(days[d.head]), null); return }
         const target = dateKey(days[d.day])
+        if (d.occ.pin) { placePin(d.occ, target, d.start); return }
         const dur = d.occ.endMin - d.occ.startMin
         if (target === d.occ.date) reshapeOccurrence(d.occ, d.start, d.start + dur)
         else moveOccurrenceToDate(d.occ, target, d.start)
+      } else if (d.kind === 'place') {
+        if (!d.moved) return
+        markHandled()
+        if (d.overGrid) placePin(d.occ, dateKey(days[d.day]), d.start)
+        else if (d.head !== null && dateKey(days[d.head]) !== d.occ.date) {
+          placePin(d.occ, dateKey(days[d.head]), null)
+        }
       } else {
         if (d.start === d.occ.startMin && d.end === d.occ.endMin) return
         markHandled()
@@ -238,12 +333,20 @@ export function WeekGrid({
   }, [drag, days, onCreate, pointToTime])
 
   const startBlockDrag = (occ: Occurrence, dayIndex: number, e: React.MouseEvent, mode: DragMode) => {
-    if (e.button !== 0 || occ.generated || picking) return
+    if (e.button !== 0 || occ.generated || pickMode) return
     e.preventDefault()
     const pt = pointToTime(e.clientX, e.clientY)
     if (!pt) return
     if (mode === 'move') {
-      setDrag({ kind: 'move', occ, grabMin: pt.min - occ.startMin, day: dayIndex, start: occ.startMin, moved: false })
+      setDrag({
+        kind: 'move',
+        occ,
+        grabMin: pt.min - occ.startMin,
+        day: dayIndex,
+        start: occ.startMin,
+        moved: false,
+        head: null,
+      })
     } else {
       setDrag({
         kind: 'resize',
@@ -255,6 +358,14 @@ export function WeekGrid({
     }
   }
 
+  /** Pick an untimed to-do up off the top of its day. */
+  const startPlaceDrag = (occ: Occurrence, dayIndex: number, e: React.MouseEvent) => {
+    if (e.button !== 0 || pickMode) return
+    e.preventDefault()
+    e.stopPropagation()
+    setDrag({ kind: 'place', occ, day: dayIndex, start: occ.startMin, overGrid: false, head: dayIndex, moved: false })
+  }
+
   // ------------------------------------------------------------------ touch
 
   const cancelPress = () => {
@@ -264,9 +375,9 @@ export function WeekGrid({
 
   const buzz = (ms = 12) => { if (navigator.vibrate) navigator.vibrate(ms) }
 
-  /** Hold a block to pick it up. */
-  const beginPress = (occ: Occurrence, e: React.TouchEvent) => {
-    if (!isMobile || occ.generated || picking || e.touches.length !== 1) return
+  /** Hold a block — or an untimed to-do — to pick it up. */
+  const beginPress = (occ: Occurrence, e: React.TouchEvent, fromTop = false) => {
+    if (!isMobile || occ.generated || pickMode || e.touches.length !== 1) return
     const t = e.touches[0]
     const x = t.clientX
     const y = t.clientY
@@ -279,14 +390,24 @@ export function WeekGrid({
         const pt = pointToTime(x, y)
         if (!pt) return
         buzz()
-        setTouch({ kind: 'lift', occ, startMin: occ.startMin, grabMin: pt.min - occ.startMin, x, y, over: null })
+        setTouch({
+          kind: 'lift',
+          occ,
+          startMin: occ.startMin,
+          grabMin: fromTop ? 0 : pt.min - occ.startMin,
+          x,
+          y,
+          over: null,
+          overGrid: !fromTop,
+          overTop: fromTop,
+        })
       }, 300),
     }
   }
 
   /** Hold empty time to draw a new block there — then keep dragging to size it. */
   const beginEmptyPress = (dayIndex: number, e: React.TouchEvent) => {
-    if (!isMobile || picking || e.touches.length !== 1) return
+    if (!isMobile || pickMode || e.touches.length !== 1) return
     if ((e.target as HTMLElement).closest('.block')) return
     const t = e.touches[0]
     const x = t.clientX
@@ -308,7 +429,7 @@ export function WeekGrid({
   /** A finger on the top or bottom edge resizes straight away — but a finger that
    *  never moves was a tap on the block, and still opens it. */
   const beginTouchResize = (occ: Occurrence, e: React.TouchEvent, edge: 'top' | 'bottom') => {
-    if (!isMobile || occ.generated || picking || e.touches.length !== 1) return
+    if (!isMobile || occ.generated || pickMode || e.touches.length !== 1) return
     e.stopPropagation()
     cancelPress()
     setTouch({
@@ -333,12 +454,17 @@ export function WeekGrid({
 
   useEffect(() => {
     if (!touch) return
-    const chipAt = (x: number, y: number) => {
-      const el = document.elementFromPoint(x, y)?.closest('.chipday')
-      if (!el) return null
-      const all = [...document.querySelectorAll('.chipday')]
-      const i = all.indexOf(el as Element)
-      return i === -1 ? null : i
+    const chipAt = (x: number, y: number) =>
+      (document.elementFromPoint(x, y)?.closest('.chipday') as HTMLElement | null)?.dataset.date ?? null
+    // Holding something against either end of the week strip turns its page.
+    const nudgeStrip = (x: number, y: number) => {
+      const strip = document.querySelector('.strip')
+      if (!strip || !inside(strip, x, y)) return
+      const r = strip.getBoundingClientRect()
+      const dir = x < r.left + 30 ? -1 : x > r.right - 30 ? 1 : 0
+      if (!dir || Date.now() - lastEdge.current < 700) return
+      lastEdge.current = Date.now()
+      window.dispatchEvent(new CustomEvent('mycal:strip-edge', { detail: dir }))
     }
     const onMove = (e: TouchEvent) => {
       const d = touchRef.current
@@ -347,13 +473,18 @@ export function WeekGrid({
       const pt = pointToTime(t.clientX, t.clientY)
       if (d.kind === 'lift') {
         e.preventDefault() // hold the page still while something is in the air
+        nudgeStrip(t.clientX, t.clientY)
         const over = chipAt(t.clientX, t.clientY)
+        const overGrid = over === null && inside(scrollRef.current, t.clientX, t.clientY)
+        const overTop = over === null && !overGrid && inside(topRowRef.current, t.clientX, t.clientY)
         setTouch({
           ...d,
           x: t.clientX,
           y: t.clientY,
           over,
-          startMin: over === null && pt ? clampMin(snap(pt.min - d.grabMin)) : d.startMin,
+          overGrid,
+          overTop,
+          startMin: overGrid && pt ? clampMin(snap(pt.min - d.grabMin)) : d.startMin,
         })
       } else if (d.kind === 'resize') {
         // Under the slop it's still a tap on the block — let the page scroll and
@@ -377,13 +508,20 @@ export function WeekGrid({
       setTouch(null)
       if (!d) return
       if (d.kind === 'lift') {
-        const dur = d.occ.endMin - d.occ.startMin
+        const o = d.occ
         markHandled()
         if (d.over !== null) {
-          const target = dateKey(weekAll[d.over])
-          if (target !== d.occ.date) moveOccurrenceToDate(d.occ, target, d.occ.startMin)
-        } else if (d.startMin !== d.occ.startMin) {
-          reshapeOccurrence(d.occ, d.startMin, d.startMin + dur)
+          if (d.over !== o.date) {
+            if (o.pin) placePin(o, d.over, o.allDay ? null : o.startMin)
+            else moveOccurrenceToDate(o, d.over, o.startMin)
+          }
+        } else if (d.overTop) {
+          if (o.pin && !o.allDay) placePin(o, o.date, null)
+        } else if (d.overGrid) {
+          if (o.allDay) placePin(o, o.date, d.startMin)
+          else if (d.startMin !== o.startMin) {
+            reshapeOccurrence(o, d.startMin, d.startMin + (o.endMin - o.startMin))
+          }
         }
       } else if (d.kind === 'resize') {
         // Went down on the edge but never moved: that was a tap on the block.
@@ -410,7 +548,7 @@ export function WeekGrid({
       window.removeEventListener('touchend', onEnd)
       window.removeEventListener('touchcancel', onEnd)
     }
-  }, [touch, pointToTime, weekAll, days, onCreate])
+  }, [touch, pointToTime, days, onCreate])
 
   const lifted = touch?.kind === 'lift' ? touch : null
   useEffect(() => {
@@ -421,11 +559,14 @@ export function WeekGrid({
 
   // ----------------------------------------------------------------- render
 
+  const isTarget = (o: Occurrence) =>
+    pickMode === 'move' ? isPeriod(o) : pickMode === 'due' ? !o.pin : false
+
   /** A tap on empty time. It only ever means something while you're picking a
    *  spot for something — otherwise it dismisses, which is what a tap on the
    *  background should do. */
   const tapEmpty = (dayIndex: number, clientX: number, clientY: number) => {
-    if (!picking || handled.current) return
+    if (!pickMode || handled.current) return
     const pt = pointToTime(clientX, clientY)
     if (!pt) return
     onCreate({
@@ -437,11 +578,63 @@ export function WeekGrid({
 
   const openBlock = (occ: Occurrence) => {
     if (handled.current) return
-    if (picking) {
-      if (isPeriod(occ)) onDropIntoPeriod(occ)
+    if (pickMode) {
+      if (isTarget(occ)) onPickBlock(occ)
       return
     }
     onOpenInspector(occ)
+  }
+
+  /** The untimed to-dos and deadlines for one day — drawn in the header on a
+   *  desktop, and in a row above the grid on a phone. */
+  const topItems = (dayIndex: number) => {
+    const key = dateKey(days[dayIndex])
+    const pins = topByDay.get(key) ?? []
+    const due = dues.allDay.filter((m) => m.date === key)
+    if (pins.length === 0 && due.length === 0) return null
+    return (
+      <>
+        {due.map((m) => (
+          <button
+            key={m.key}
+            className={`addue ${m.done ? 'done' : ''}`}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onOpenDue(m) }}
+          >
+            <i>DUE</i>
+            <span>{m.title}</span>
+          </button>
+        ))}
+        {pins.map((o) => (
+          <div
+            key={o.key}
+            className={`adpin ${stateClass(o)} ${lifted?.occ.key === o.key ? 'lifted' : ''}`}
+            // @ts-expect-error custom property
+            style={{ '--h': CATEGORY_META[o.series.category].hue }}
+            title="Drag into the day to give it a time"
+            onMouseDown={(e) => startPlaceDrag(o, dayIndex, e)}
+            onTouchStart={(e) => beginPress(o, e, true)}
+            onTouchMove={pressMove}
+            onTouchEnd={cancelPress}
+            onTouchCancel={cancelPress}
+            onClick={(e) => { e.stopPropagation(); openBlock(o) }}
+          >
+            <button
+              className="pindot"
+              title={o.outcome === 'finished' ? 'Done — tap to undo' : 'Mark done'}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (o.outcome) clearOutcome(o)
+                else setOutcome(o, 'finished')
+              }}
+            />
+            <span>{o.title}</span>
+          </div>
+        ))}
+      </>
+    )
   }
 
   const nowMin = minutesNow(now)
@@ -449,10 +642,17 @@ export function WeekGrid({
   const showNow = todayIdx >= 0 && nowMin >= DAY_START_MIN && nowMin <= DAY_END_MIN
   const nowTop = (nowMin - DAY_START_MIN) * pxPerMin
 
+  const mobileTop = isMobile ? topItems(0) : null
+  const carryingTimedPin = Boolean(lifted?.occ.pin && !lifted.occ.allDay)
+
   return (
-    <div className={`gridwrap ${picking ? 'pickmode' : ''}`}>
+    <div className={`gridwrap ${pickMode ? 'pickmode' : ''}`}>
       {!isMobile && (
-      <div className="dayhead" style={{ gridTemplateColumns: template, transition: 'grid-template-columns .28s cubic-bezier(.4,0,.2,1)' }}>
+      <div
+        ref={headRef}
+        className="dayhead"
+        style={{ gridTemplateColumns: template, transition: 'grid-template-columns .28s cubic-bezier(.4,0,.2,1)' }}
+      >
         <div className="corner" />
         {days.map((d, i) => {
           const today = isSameDay(d, now)
@@ -468,12 +668,27 @@ export function WeekGrid({
                 ? 'NO SCHOOL'
                 : undefined
             : undefined
+          const headTarget =
+            (drag?.kind === 'move' && drag.head === i) ||
+            (drag?.kind === 'place' && drag.moved && !drag.overGrid && drag.head === i)
+          const items = topItems(i)
           return (
             <div
               key={i}
-              className={`cell ${today ? 'today' : ''} ${past ? 'past' : ''} ${focusedDay === i ? 'focused' : ''}`}
-              onClick={() => onFocusDay(focusedDay === i ? null : i)}
-              title={focusedDay === i ? 'Collapse back to the week' : 'Expand this day'}
+              className={`cell ${today ? 'today' : ''} ${past ? 'past' : ''} ${focusedDay === i ? 'focused' : ''} ${
+                headTarget ? 'adtarget' : ''
+              } ${pickMode === 'due' ? 'duepick' : ''}`}
+              onClick={() => {
+                if (pickMode === 'due') { onPickAllDay(key); return }
+                onFocusDay(focusedDay === i ? null : i)
+              }}
+              title={
+                pickMode === 'due'
+                  ? 'Due this day, no particular time'
+                  : focusedDay === i
+                    ? 'Collapse back to the week'
+                    : 'Expand this day'
+              }
             >
               <div className="dow">
                 {fmtDayLabel(d)}
@@ -492,10 +707,27 @@ export function WeekGrid({
                 {today && <span className="todaypill">TODAY</span>}
               </div>
               {chip && <div className={`schedchip ${manual ? 'manual' : ''}`}>{chip}</div>}
+              {items && <div className="allday">{items}</div>}
             </div>
           )
         })}
       </div>
+      )}
+
+      {/* The phone's top-of-day: shown only when there's something in it, or when
+          you're carrying a to-do that could be dropped back into it. */}
+      {isMobile && (mobileTop || carryingTimedPin || pickMode === 'due') && (
+        <div
+          ref={topRowRef}
+          className={`adrow ${lifted?.overTop && carryingTimedPin ? 'target' : ''} ${
+            pickMode === 'due' ? 'duepick' : ''
+          }`}
+          onClick={() => { if (pickMode === 'due') onPickAllDay(dateKey(days[0])) }}
+        >
+          {pickMode === 'due' && <span className="adhint">Tap here — due today, no particular time</span>}
+          {carryingTimedPin && !mobileTop && <span className="adhint">Drop here to take its time away</span>}
+          {mobileTop}
+        </div>
       )}
 
       {empty && (
@@ -556,18 +788,17 @@ export function WeekGrid({
             // already the thing you're doing, and a block that's already riding on
             // something can't host a rider of its own.
             const railFor =
-              !drag &&
-              !picking &&
-              hoverKey &&
+              railKey &&
               placed.some(
                 (x) =>
-                  x.occ.key === hoverKey &&
+                  x.occ.key === railKey &&
                   x.width > 0.55 &&
                   !x.rider &&
                   !x.occ.generated &&
+                  !x.occ.pin &&
                   x.occ.series.kind === 'event',
               )
-                ? hoverKey
+                ? railKey
                 : null
             const today = isSameDay(d, now)
             const isPastDay = key < dateKey(now)
@@ -580,15 +811,15 @@ export function WeekGrid({
                 ref={(el) => { colRefs.current[i] = el }}
                 className={`col ${today ? 'today' : ''} ${weekend ? 'weekend' : ''} ${focusedDay === i ? 'focused' : ''}`}
                 onMouseDown={(e) => {
-                  if (e.button !== 0 || picking) return
-                  if ((e.target as HTMLElement).closest('.block')) return
+                  if (e.button !== 0 || pickMode) return
+                  if ((e.target as HTMLElement).closest('.block, .dueline')) return
                   const pt = pointToTime(e.clientX, e.clientY)
                   if (!pt) return
                   setDrag({ kind: 'create', day: i, a: pt.min, b: pt.min })
                 }}
                 onMouseLeave={() => setHoverKey(null)}
                 onClick={(e) => {
-                  if ((e.target as HTMLElement).closest('.block')) return
+                  if ((e.target as HTMLElement).closest('.block, .dueline')) return
                   tapEmpty(i, e.clientX, e.clientY)
                 }}
                 onTouchStart={(e) => beginEmptyPress(i, e)}
@@ -596,7 +827,7 @@ export function WeekGrid({
                 onTouchEnd={cancelPress}
                 onTouchCancel={cancelPress}
                 onDoubleClick={(e) => {
-                  if (picking || (e.target as HTMLElement).closest('.block')) return
+                  if (pickMode || (e.target as HTMLElement).closest('.block, .dueline')) return
                   const pt = pointToTime(e.clientX, e.clientY)
                   if (!pt) return
                   onCreate({
@@ -616,28 +847,49 @@ export function WeekGrid({
                 {veilH > 0 && <div className="pastveil" style={{ height: veilH }} />}
 
                 {placed.map((p) => {
+                  const dur = p.occ.endMin - p.occ.startMin
                   const live = drag?.kind === 'move' && drag.occ.key === p.occ.key
                   const rs = drag?.kind === 'resize' && drag.occ.key === p.occ.key
-                  if (live && drag.day !== i) return null
+                  // Carried to another day, or up into the header: not drawn here.
+                  if (live && (drag.day !== i || drag.head !== null)) return null
                   const trs = touch?.kind === 'resize' && touch.occ.key === p.occ.key ? touch : null
                   const inAir = lifted?.occ.key === p.occ.key ? lifted : null
                   const shown = live
-                    ? { ...p, occ: { ...p.occ, startMin: drag.start, endMin: drag.start + (p.occ.endMin - p.occ.startMin) } }
+                    ? { ...p, occ: { ...p.occ, startMin: drag.start, endMin: drag.start + dur } }
                     : rs
                       ? { ...p, occ: { ...p.occ, startMin: drag.start, endMin: drag.end } }
                       : trs
                         ? { ...p, occ: { ...p.occ, startMin: trs.start, endMin: trs.end } }
                         : inAir
-                          ? { ...p, occ: { ...p.occ, startMin: inAir.startMin, endMin: inAir.startMin + (p.occ.endMin - p.occ.startMin) } }
+                          ? { ...p, occ: { ...p.occ, startMin: inAir.startMin, endMin: inAir.startMin + dur } }
                           : p
+                  // Say how long, not just when — "2h" is the number you're
+                  // actually dragging towards.
+                  const liveLabel =
+                    live && drag.moved
+                      ? p.occ.pin
+                        ? fmtTime(drag.start)
+                        : fmtRange(drag.start, drag.start + dur)
+                      : rs
+                        ? `${fmtDur(drag.end - drag.start)} · ${fmtRange(drag.start, drag.end)}`
+                        : trs?.moved
+                          ? `${fmtDur(trs.end - trs.start)} · ${fmtRange(trs.start, trs.end)}`
+                          : inAir?.overGrid
+                            ? p.occ.pin
+                              ? fmtTime(inAir.startMin)
+                              : fmtRange(inAir.startMin, inAir.startMin + dur)
+                            : undefined
                   return (
                     <BlockCard
                       key={p.occ.key}
                       placed={shown}
                       pxPerMin={pxPerMin}
                       hovered={hoverKey === p.occ.key}
-                      dropInto={picking && isPeriod(p.occ)}
+                      dropInto={isTarget(p.occ)}
                       isMobile={isMobile}
+                      dues={dues.inBlock.get(p.occ.key)}
+                      onOpenDue={onOpenDue}
+                      liveLabel={liveLabel}
                       onHover={(over, e) => {
                         // Moving between the block and its rail must not count
                         // as leaving — they're one hover target.
@@ -656,6 +908,23 @@ export function WeekGrid({
                     />
                   )
                 })}
+
+                {/* Deadlines with a time but nothing on the calendar to sit in. */}
+                {dues.loose
+                  .filter((m) => m.date === key)
+                  .map((m) => (
+                    <button
+                      key={m.key}
+                      className={`dueline ${m.done ? 'done' : ''}`}
+                      style={{ top: ((m.startMin ?? 0) - DAY_START_MIN) * pxPerMin }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onOpenDue(m) }}
+                    >
+                      <i>DUE</i>
+                      <span>{m.title}</span>
+                      <em>{fmtTime(m.startMin ?? 0)}</em>
+                    </button>
+                  ))}
 
                 {/* Hover rail: lays over the right edge of a commitment rather
                     than shoving it aside — nothing on the grid moves. Click or
@@ -696,47 +965,88 @@ export function WeekGrid({
                 })()}
 
                 {/* a block being dragged in from another day */}
-                {drag?.kind === 'move' && drag.moved && drag.day === i && drag.occ.date !== dateKey(d) && (
+                {drag?.kind === 'move' && drag.moved && drag.head === null && drag.day === i && drag.occ.date !== key && (
                   <div
                     className="dragghost"
                     style={{
                       top: (drag.start - DAY_START_MIN) * pxPerMin,
-                      height: (drag.occ.endMin - drag.occ.startMin) * pxPerMin,
+                      height: Math.max((drag.occ.endMin - drag.occ.startMin) * pxPerMin, PIN_H),
                       left: 3,
                       right: 3,
                     }}
                   >
-                    {drag.occ.title}
+                    <b>{drag.occ.title}</b>
+                    <span>
+                      {drag.occ.pin
+                        ? fmtTime(drag.start)
+                        : fmtRange(drag.start, drag.start + drag.occ.endMin - drag.occ.startMin)}
+                    </span>
                   </div>
                 )}
 
-                {drag?.kind === 'create' && drag.day === i && (
+                {/* an untimed to-do being given a time */}
+                {drag?.kind === 'place' && drag.overGrid && drag.day === i && (
                   <div
-                    className="dragghost"
-                    style={{
-                      top: (Math.min(drag.a, drag.b) - DAY_START_MIN) * pxPerMin,
-                      height: Math.max(Math.abs(drag.b - drag.a), 18) * pxPerMin,
-                      left: 3,
-                      right: 3,
-                    }}
+                    className="dragghost pinghost"
+                    style={{ top: (drag.start - DAY_START_MIN) * pxPerMin, height: PIN_H, left: 3, right: 3 }}
                   >
-                    {fmtTime(Math.min(drag.a, drag.b))}
+                    <b>{drag.occ.title}</b>
+                    <span>{fmtTime(drag.start)}</span>
+                  </div>
+                )}
+                {lifted?.occ.allDay && lifted.overGrid && lifted.occ.date === key && (
+                  <div
+                    className="dragghost live pinghost"
+                    style={{ top: (lifted.startMin - DAY_START_MIN) * pxPerMin, height: PIN_H, left: 3, right: 3 }}
+                  >
+                    <b>{lifted.occ.title}</b>
+                    <span>{fmtTime(lifted.startMin)}</span>
                   </div>
                 )}
 
-                {touch?.kind === 'create' && touch.day === i && (
-                  <div
-                    className="dragghost live"
-                    style={{
-                      top: (Math.min(touch.a, touch.b) - DAY_START_MIN) * pxPerMin,
-                      height: Math.max(Math.abs(touch.b - touch.a), 18) * pxPerMin,
-                      left: 3,
-                      right: 3,
-                    }}
-                  >
-                    {fmtRange(Math.min(touch.a, touch.b), Math.max(touch.a, touch.b))}
-                  </div>
-                )}
+                {drag?.kind === 'create' && drag.day === i && (() => {
+                  const a = Math.min(drag.a, drag.b)
+                  const b = Math.max(drag.a, drag.b)
+                  return (
+                    <div
+                      className="dragghost"
+                      style={{
+                        top: (a - DAY_START_MIN) * pxPerMin,
+                        height: Math.max(b - a, 18) * pxPerMin,
+                        left: 3,
+                        right: 3,
+                      }}
+                    >
+                      {b - a < 5 ? (
+                        <span>{fmtTime(a)}</span>
+                      ) : (
+                        <>
+                          <b>{fmtDur(b - a)}</b>
+                          <span>{fmtRange(a, b)}</span>
+                        </>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {touch?.kind === 'create' && touch.day === i && (() => {
+                  const a = Math.min(touch.a, touch.b)
+                  const b = Math.max(touch.a, touch.b)
+                  return (
+                    <div
+                      className="dragghost live"
+                      style={{
+                        top: (a - DAY_START_MIN) * pxPerMin,
+                        height: Math.max(b - a, 18) * pxPerMin,
+                        left: 3,
+                        right: 3,
+                      }}
+                    >
+                      <b>{fmtDur(Math.max(b - a, 10))}</b>
+                      <span>{fmtRange(a, Math.max(b, a + 10))}</span>
+                    </div>
+                  )
+                })()}
 
                 {today && showNow && <div className="nowline" style={{ top: nowTop }} />}
               </div>

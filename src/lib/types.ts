@@ -34,7 +34,12 @@ export interface DayNote {
    *  you an answer until every one of them is resolved. */
   task?: boolean
   /** Only meaningful with `task`. */
-  done?: 'finished' | 'dropped'
+  done?: 'finished' | 'dropped' | 'rescheduled'
+  /** Where a moved piece of work went. The line stays behind, struck through,
+   *  the same way a moved block does. */
+  movedTo?: { date: string; startMin: number }
+  /** Why it didn't happen here. */
+  why?: string
 }
 
 /** A Series is the definition of a block. A one-off block is just a series whose
@@ -63,6 +68,15 @@ export interface Series {
    * still something you meant to do, so it still owes you an outcome.
    */
   pin?: boolean
+  /** A to-do with no moment yet. It sits at the top of its day, above the grid,
+   *  until you drag it down to the time you'll actually do it. */
+  allDay?: boolean
+  /**
+   * When it has to be done by. Drawn on that day: inside whatever block you'll
+   * be in at that moment (due during Calc belongs in Calc), or at the top of the
+   * day when there's no time.
+   */
+  due?: { date: string; startMin?: number }
   archived?: boolean
 }
 
@@ -71,6 +85,8 @@ export interface Series {
 export interface Override {
   seriesId: string
   date: string // 'YYYY-MM-DD'
+  /** This day's copy of a repeating to-do has no time yet. */
+  allDay?: boolean
 
   // --- glanceable layer ---
   notes?: DayNote[]

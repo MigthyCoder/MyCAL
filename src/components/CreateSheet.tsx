@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { Occurrence } from '../lib/occurrences'
 import type { Category, Kind } from '../lib/types'
-import { addSeries, endOfDayFor } from '../lib/store'
-import { fmtRange, fmtTime, parseKey } from '../lib/time'
+import { addSeries } from '../lib/store'
+import { fmtDur, fmtRange, fmtTime, parseKey } from '../lib/time'
 import { CategoryPicker, DayPicker, Seg, Sheet, TimeField } from './ui'
 
 export interface Draft {
@@ -10,6 +10,10 @@ export interface Draft {
   startMin: number
   endMin: number
 }
+
+/** The lengths you actually think in. "Vantage, 2 PM, for two hours" should be
+ *  one tap on 2h, not clock arithmetic on the end time. */
+const LENGTHS = [30, 60, 90, 120, 180]
 
 export function CreateSheet({
   draft,
@@ -22,26 +26,24 @@ export function CreateSheet({
 }) {
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<Kind>('task')
-  // A to-do has no duration you could honestly draw, so it lands after whatever
-  // is already on that day rather than claiming a slot of its own.
   const [isPin, setIsPin] = useState(false)
+  // A to-do has no time until you give it one. It goes to the top of its day —
+  // not to some slot after dinner you never chose — and you drag it down into
+  // the day once you know when.
+  const [pinTimed, setPinTimed] = useState(false)
   const [category, setCategory] = useState<Category>('work')
   const [start, setStart] = useState(draft.startMin)
   const [end, setEnd] = useState(draft.endMin)
   const [repeat, setRepeat] = useState<number[]>([])
   const [why, setWhy] = useState('')
+  const len = end - start
 
   // The app never silently stacks blocks. If this lands on top of something,
-  // it asks what makes the overlap actually work. A pin lies across whatever is
-  // there by design, so it never asks.
+  // it asks what makes the overlap actually work. A to-do lies across whatever
+  // is there by design, so it never asks.
   const collides = useMemo(
     () => (isPin ? [] : sameDay.filter((o) => !o.pin && o.startMin < end && start < o.endMin)),
     [sameDay, start, end, isPin],
-  )
-
-  const pinAt = useMemo(
-    () => endOfDayFor(sameDay.filter((o) => !o.pin).map((o) => o.endMin)),
-    [sameDay],
   )
 
   const create = () => {
@@ -51,9 +53,9 @@ export function CreateSheet({
       kind: isPin ? 'task' : kind,
       category,
       schoolRole: null,
-      ...(isPin ? { pin: true } : {}),
-      startMin: isPin ? pinAt : start,
-      endMin: isPin ? pinAt : Math.max(end, start + 10),
+      ...(isPin ? { pin: true, allDay: !pinTimed } : {}),
+      startMin: start,
+      endMin: isPin ? start : Math.max(end, start + 10),
       recurrence: repeat.length ? { byDay: repeat } : null,
       anchorDate: draft.date,
       ...(collides.length && why.trim() ? { overlapReason: why.trim().toUpperCase() } : {}),
@@ -66,7 +68,11 @@ export function CreateSheet({
       <h3>{isPin ? 'New to-do' : 'New block'}</h3>
       <div className="meta">
         {parseKey(draft.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-        {isPin ? '' : ` · ${fmtRange(start, end)}`}
+        {isPin
+          ? pinTimed
+            ? ` · ${fmtTime(start)}`
+            : ' · no set time'
+          : ` · ${fmtRange(start, end)} · ${fmtDur(len)}`}
       </div>
 
       <input
@@ -93,7 +99,7 @@ export function CreateSheet({
       />
       <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6, lineHeight: 1.5 }}>
         {isPin
-          ? `No set time — it sits as a line at ${fmtTime(pinAt)}, after everything else that day. Drag it wherever you like, and it still asks whether it got done.`
+          ? 'Sits at the top of the day until you drag it down to a time. Either way it still asks whether it got done.'
           : kind === 'task'
             ? 'Takes a slot, and asks you afterwards whether it got done.'
             : 'Takes a slot. Never asks you for anything.'}
@@ -102,13 +108,44 @@ export function CreateSheet({
       <h4>Color</h4>
       <CategoryPicker value={category} onChange={setCategory} />
 
-      {!isPin && (
+      {isPin ? (
         <>
-          <h4>Time</h4>
+          <h4>When</h4>
+          <Seg
+            value={pinTimed ? 'at' : 'none'}
+            options={[
+              { value: 'none' as const, label: 'No set time' },
+              { value: 'at' as const, label: 'At a time' },
+            ]}
+            onChange={(v) => setPinTimed(v === 'at')}
+          />
+          {pinTimed && (
+            <div className="row" style={{ marginTop: 8 }}>
+              <TimeField value={start} onChange={setStart} />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <h4>
+            Time <span className="h4dur">{fmtDur(len)}</span>
+          </h4>
           <div className="row">
-            <TimeField value={start} onChange={setStart} />
+            {/* Moving the start keeps the length — you meant "later", not "shorter". */}
+            <TimeField value={start} onChange={(v) => { setEnd(Math.min(v + len, 24 * 60)); setStart(v) }} />
             <span style={{ color: 'var(--text-3)' }}>to</span>
             <TimeField value={end} onChange={setEnd} />
+          </div>
+          <div className="durchips">
+            {LENGTHS.map((m) => (
+              <button
+                key={m}
+                aria-pressed={len === m}
+                onClick={() => setEnd(Math.min(start + m, 24 * 60))}
+              >
+                {fmtDur(m)}
+              </button>
+            ))}
           </div>
         </>
       )}

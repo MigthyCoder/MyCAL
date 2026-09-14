@@ -1,7 +1,8 @@
 import type { Placed } from '../lib/layout'
+import type { DueMark } from '../lib/occurrences'
 import type { DayNote, MarkerType } from '../lib/types'
 import { CATEGORY_META } from '../lib/seed'
-import { DAY_START_MIN, fmtRange, fmtTime, parseKey } from '../lib/time'
+import { DAY_START_MIN, fmtDur, fmtRange, fmtTime, parseKey } from '../lib/time'
 import { clearOutcome, setNoteDone, setOutcome } from '../lib/store'
 
 /** Width the hover rail claims, in px. The block slides left by this much so
@@ -36,6 +37,11 @@ interface Props {
   dropInto?: boolean
   /** Text is bigger on a phone, so fewer lines fit in the same minutes. */
   isMobile: boolean
+  /** Deadlines that land while you're in this block. */
+  dues?: DueMark[]
+  onOpenDue?: (m: DueMark) => void
+  /** Shown while the block is being dragged or stretched: how long, and when. */
+  liveLabel?: string
 }
 
 export function BlockCard({
@@ -52,6 +58,9 @@ export function BlockCard({
   onTouchResize,
   dropInto,
   isMobile,
+  dues,
+  onOpenDue,
+  liveLabel,
 }: Props) {
   const { occ, left, width } = placed
   const hue = CATEGORY_META[occ.series.category].hue
@@ -107,15 +116,17 @@ export function BlockCard({
   const ORDER: MarkerType[] = ['test', 'quiz', 'due', 'presentation']
   const tally = new Map<MarkerType, number>()
   for (const n of occ.notes) if (n.marker) tally.set(n.marker, (tally.get(n.marker) ?? 0) + 1)
+  // A deadline landing in this block is a DUE like any other, whoever wrote it.
+  for (const m of dues ?? []) if (!m.done) tally.set('due', (tally.get('due') ?? 0) + 1)
   const chips = ORDER.filter((t) => tally.has(t)).map((t) => ({ type: t, n: tally.get(t)! }))
 
   const movedTail =
     occ.state === 'rescheduled' && occ.movedTo
       ? `→ ${parseKey(occ.movedTo.date).toLocaleDateString(undefined, { weekday: 'short' })} ${fmtTime(occ.movedTo.startMin)}`
       : null
-  const tail = movedTail ?? fmtRange(occ.startMin, occ.endMin)
+  const tail = movedTail ?? `${fmtRange(occ.startMin, occ.endMin)} · ${fmtDur(occ.endMin - occ.startMin)}`
 
-  const hasBody = subLines.length > 0 || plan.length > 0
+  const hasBody = subLines.length > 0 || plan.length > 0 || (dues?.length ?? 0) > 0
   // Only a block with something written in it can overflow its slot, so only
   // those grow. A bare block like Streetplay stays completely still.
   const grow = hovered && hasBody
@@ -156,6 +167,7 @@ export function BlockCard({
     2 - // the plan's own top margin
     (chips.length ? 19 : 0) -
     subLines.length * (isMobile ? 17 : 15) -
+    (dues?.length ?? 0) * (isMobile ? 17 : 15) -
     (showWhen ? 15 : 0)
   // n rows cost n*ROW minus the gap the last one doesn't have. The label is the
   // first thing given up, then whole items.
@@ -170,16 +182,25 @@ export function BlockCard({
       {showLab && <div className="planlab">Planned</div>}
       {shownPlan.map((n, i) => (
         <div className={`todo ${n.done ?? ''}`} key={n.id}>
+          {/* A moved line isn't something to tick back on — tapping it opens the
+              block, where you can see where it went. */}
           <button
             className="tick"
-            title={n.done ? 'Not done after all' : 'Mark done'}
+            title={n.done === 'rescheduled' ? 'Moved' : n.done ? 'Not done after all' : 'Mark done'}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
-            onClick={tick(n)}
+            onClick={n.done === 'rescheduled' ? undefined : tick(n)}
           >
-            {n.done ? '✓' : isFlex ? i + 1 : ''}
+            {n.done === 'rescheduled' ? '→' : n.done ? '✓' : isFlex ? i + 1 : ''}
           </button>
-          <span>{n.text}</span>
+          <span>
+            {n.text}
+            {n.done === 'rescheduled' && n.movedTo && (
+              <em className="movedto">
+                {' '}→ {parseKey(n.movedTo.date).toLocaleDateString(undefined, { weekday: 'short' })}
+              </em>
+            )}
+          </span>
         </div>
       ))}
       {hidden > 0 && <div className="planmore">+{hidden} more</div>}
@@ -232,6 +253,8 @@ export function BlockCard({
         onOpen()
       }}
     >
+      {liveLabel && <div className="durbadge">{liveLabel}</div>}
+
       {!occ.generated && (
         <>
           {/* Fat enough for a fingertip on a phone, invisible on a desktop. */}
@@ -310,6 +333,19 @@ export function BlockCard({
           )}
 
           {planRows}
+
+          {dues && dues.length > 0 && !compact && !tight &&
+            dues.map((m) => (
+              <button
+                key={m.key}
+                className={`sub flag due duelink ${m.done ? 'duedone' : ''}`}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onOpenDue?.(m) }}
+              >
+                Due · {m.title}
+              </button>
+            ))}
 
           {!compact &&
             !tight &&

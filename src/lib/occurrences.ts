@@ -35,6 +35,8 @@ export interface Occurrence {
   generated: boolean
   /** Drawn as a line at a moment rather than a box over a span. */
   pin: boolean
+  /** A to-do with no time yet — it lives above the grid, not on it. */
+  allDay: boolean
 }
 
 /** Flex is scheduled like a class but graded like a task. */
@@ -135,6 +137,7 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
       edited: Boolean(ov && ((ov.notes?.length ?? 0) > 0 || ov.title !== undefined)),
       generated,
       pin: Boolean(series.pin),
+      allDay: Boolean(series.pin) && (ov?.allDay ?? series.allDay ?? false),
     })
   }
 
@@ -185,3 +188,68 @@ export function openLoops(occs: Occurrence[]): Occurrence[] {
     .filter((o) => o.state === 'needs-outcome')
     .sort((a, b) => (a.date === b.date ? a.startMin - b.startMin : a.date < b.date ? -1 : 1))
 }
+
+/** A deadline, drawn on the day it lands rather than the day you'll work on it. */
+export interface DueMark {
+  key: string
+  series: Series
+  title: string
+  date: string
+  startMin?: number
+  done: boolean
+}
+
+export function dueMarks(db: DB, dates: string[]): DueMark[] {
+  const want = new Set(dates)
+  const out: DueMark[] = []
+  for (const s of db.series) {
+    if (s.archived || !s.due || !want.has(s.due.date)) continue
+    out.push({
+      key: `due:${s.id}`,
+      series: s,
+      title: s.title,
+      date: s.due.date,
+      startMin: s.due.startMin,
+      done: db.overrides.some((o) => o.seriesId === s.id && o.outcome === 'finished'),
+    })
+  }
+  return out
+}
+
+/**
+ * Where each deadline gets drawn.
+ *
+ * One with a time is attached to whatever you'll be IN at that moment — a lab
+ * report due during Physics shows up inside Physics, a form due during the
+ * Vantage meeting shows up inside the meeting. The tightest block wins, so it
+ * lands in the class rather than in the long commitment it happens to sit in.
+ * No time, or nothing on the calendar then, and it has to stand on its own.
+ */
+export function placeDues(occs: Occurrence[], marks: DueMark[]) {
+  const inBlock = new Map<string, DueMark[]>()
+  const allDay: DueMark[] = []
+  const loose: DueMark[] = []
+  for (const m of marks) {
+    if (m.startMin === undefined) {
+      allDay.push(m)
+      continue
+    }
+    const t = m.startMin
+    const host = occs
+      .filter(
+        (o) =>
+          o.date === m.date &&
+          !o.pin &&
+          o.state !== 'rescheduled' &&
+          o.series.id !== m.series.id &&
+          o.startMin <= t &&
+          t < o.endMin,
+      )
+      .sort((a, b) => a.endMin - a.startMin - (b.endMin - b.startMin))[0]
+    if (!host) loose.push(m)
+    else inBlock.set(host.key, [...(inBlock.get(host.key) ?? []), m])
+  }
+  return { inBlock, allDay, loose }
+}
+
+export type PlacedDues = ReturnType<typeof placeDues>
