@@ -98,7 +98,12 @@ export function buildOccurrences(db: DB, dates: string[], now: Date): Occurrence
 
     const startMin = ov?.startMin ?? baseStart
     const endMin = ov?.endMin ?? baseEnd
-    const notes = ov?.notes ?? []
+    // Anything you write on a day is something to remember, and anything worth
+    // remembering is worth being asked about afterwards. Labels are the one
+    // exception — a test or a due date is a fact about the day, not a thing you
+    // do. Applied here on read rather than as a migration, so notes arriving by
+    // sync from an older copy follow the same rule.
+    const notes = (ov?.notes ?? []).map((n) => (n.marker || n.task ? n : { ...n, task: true }))
     // MyCAL knows your whole school year, but it wasn't watching before you
     // started using it — nothing from back then gets to nag you.
     const needs =

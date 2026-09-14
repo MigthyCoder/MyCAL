@@ -71,7 +71,7 @@ export function OutcomeSheet({
 
       {items.length > 0 && (
         <>
-          <h4>{isFlex ? 'The plan' : `What you were doing in ${occ.title}`}</h4>
+          <h4>{isFlex ? 'The plan' : 'Did you remember?'}</h4>
           <div className="oc-items">
             {items.map((n, i) => (
               <div key={n.id} className={`oc-item ${n.done ?? ''}`}>

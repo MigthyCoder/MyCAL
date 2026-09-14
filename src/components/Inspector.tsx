@@ -252,7 +252,7 @@ export function Inspector({
         </>
       ) : (
         <>
-          <h4>{occ.notes.some((n) => n.task) ? 'On this day — and what you\u2019re doing in it' : 'On this day'}</h4>
+          <h4>On this day</h4>
           <div className="notelist">
             {notes.map((n, i) => (
               <div className={`noterow ${n.task ? 'istask' : ''} ${n.done ?? ''}`} key={n.id}>
@@ -277,7 +277,7 @@ export function Inspector({
                 )}
                 <select
                   className="field notekind"
-                  value={n.task ? 'task' : (n.marker ?? '')}
+                  value={n.marker ?? 'task'}
                   onChange={(e) => {
                     const v = e.target.value
                     setNotes((ns) =>
@@ -296,7 +296,6 @@ export function Inspector({
                     )
                   }}
                 >
-                  <option value="">Note</option>
                   <option value="task">To-do</option>
                   <option value="test">Test</option>
                   <option value="quiz">Quiz</option>
@@ -311,7 +310,7 @@ export function Inspector({
                     setNotes((ns) => ns.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))
                   }
                   placeholder={
-                    n.marker ? 'Integrals unit 3' : s.defaultSubtitle ? `Default: ${s.defaultSubtitle}` : 'Anything to remember'
+                    n.marker ? 'Integrals unit 3' : 'Ask Mr. Lohmann about the grade'
                   }
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') setNotes((ns) => [...ns, newNote()])

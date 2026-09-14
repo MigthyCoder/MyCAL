@@ -210,13 +210,45 @@ export function unsetOverrideFields(seriesId: string, date: string, fields: (key
   commit({ ...db, overrides: next })
 }
 
+/** What a copy of a block should still be carrying: every label, and every
+ *  to-do that hasn't been answered yet — with fresh ids and no answers. */
+function carryNotes(notes: DayNote[]): DayNote[] {
+  return notes
+    .filter((n) => !n.done)
+    .map(({ done: _d, movedTo: _m, why: _w, ...n }) => ({ ...n, id: uid() }))
+}
+
+function carryInto(seriesId: string, date: string, notes: DayNote[]) {
+  const carried = carryNotes(notes)
+  if (carried.length) patchOverride(seriesId, date, { notes: carried })
+}
+
+/**
+ * A one-off that changes day takes everything written about it along. Its notes
+ * and answers live on an override keyed by date, so moving only the block would
+ * quietly leave all of that behind on the day it used to be.
+ */
+function moveOverride(seriesId: string, from: string, to: string) {
+  if (from === to) return
+  if (!db.overrides.some((o) => o.seriesId === seriesId && o.date === from)) return
+  commit({
+    ...db,
+    overrides: db.overrides
+      .filter((o) => !(o.seriesId === seriesId && o.date === to))
+      .map((o) => (o.seriesId === seriesId && o.date === from ? { ...o, date: to } : o)),
+  })
+}
+
 export function setDayNotes(occ: Occurrence, notes: DayNote[]) {
   const cleaned = notes.filter((n) => n.text.trim()).map((n) => ({ ...n, text: n.text.trim() }))
   if (cleaned.length === 0) unsetOverrideFields(occ.series.id, occ.date, ['notes'])
   else patchOverride(occ.series.id, occ.date, { notes: cleaned })
 }
 
-export const newNote = (text = '', marker?: MarkerType): DayNote => ({ id: uid(), text, marker })
+/** A line written on a day. Without a label it's a to-do: anything worth writing
+ *  down is worth being asked, afterwards, whether you remembered it. */
+export const newNote = (text = '', marker?: MarkerType): DayNote =>
+  marker ? { id: uid(), text, marker } : { id: uid(), text, task: true }
 
 /** A piece of work living inside a period rather than beside it. */
 export const newPlanItem = (text: string): DayNote => ({ id: uid(), text, task: true })
@@ -268,12 +300,12 @@ export function renameOccurrence(occ: Occurrence, title: string, scope: 'series'
 
 /** Same thing, same day, one copy. */
 export function duplicateOccurrence(occ: Occurrence): Series {
-  return addSeries({
+  const copy = addSeries({
     title: `${occ.title} (copy)`,
     kind: occ.series.kind,
     category: occ.series.category,
     schoolRole: null,
-    defaultSubtitle: occ.notes.find((n) => !n.marker)?.text ?? occ.fallbackSubtitle,
+    defaultSubtitle: occ.fallbackSubtitle,
     location: occ.series.location,
     startMin: occ.startMin,
     endMin: occ.endMin,
@@ -282,6 +314,8 @@ export function duplicateOccurrence(occ: Occurrence): Series {
     ...(occ.series.pin ? { pin: true, allDay: occ.allDay } : {}),
     ...(occ.series.overlapReason ? { overlapReason: occ.series.overlapReason } : {}),
   })
+  carryInto(copy.id, occ.date, occ.notes)
+  return copy
 }
 
 // --------------------------------------------------------------- outcomes
@@ -315,7 +349,7 @@ export function reschedule(
     kind: occ.series.kind,
     category: occ.series.category,
     schoolRole: occ.series.schoolRole,
-    defaultSubtitle: occ.notes.find((n) => !n.marker)?.text ?? occ.fallbackSubtitle,
+    defaultSubtitle: occ.fallbackSubtitle,
     location: occ.series.location,
     startMin: toStartMin,
     endMin: occ.series.pin ? toStartMin : toStartMin + duration,
@@ -324,6 +358,7 @@ export function reschedule(
     ...(occ.series.pin ? { pin: true } : {}),
     ...(occ.series.due ? { due: occ.series.due } : {}),
   })
+  carryInto(copy.id, toDate, occ.notes)
   patchOverride(occ.series.id, occ.date, {
     outcome: 'rescheduled',
     movedTo: { date: toDate, startMin: toStartMin },
@@ -376,16 +411,17 @@ export function reshapeOccurrence(occ: Occurrence, startMin: number, endMin: num
 export function moveOccurrenceToDate(occ: Occurrence, toDate: string, startMin: number) {
   const duration = occ.endMin - occ.startMin
   if (!occ.series.recurrence) {
+    moveOverride(occ.series.id, occ.date, toDate)
     updateSeries(occ.series.id, { anchorDate: toDate, startMin, endMin: startMin + duration })
     return
   }
   patchOverride(occ.series.id, occ.date, { cancelled: true })
-  addSeries({
+  const copy = addSeries({
     title: occ.title,
     kind: occ.series.kind,
     category: occ.series.category,
     schoolRole: occ.series.schoolRole,
-    defaultSubtitle: occ.notes.find((n) => !n.marker)?.text ?? occ.fallbackSubtitle,
+    defaultSubtitle: occ.fallbackSubtitle,
     location: occ.series.location,
     startMin,
     endMin: startMin + duration,
@@ -394,6 +430,7 @@ export function moveOccurrenceToDate(occ: Occurrence, toDate: string, startMin: 
     ...(occ.series.pin ? { pin: true, allDay: occ.allDay } : {}),
     ...(occ.series.due ? { due: occ.series.due } : {}),
   })
+  carryInto(copy.id, toDate, occ.notes)
 }
 
 /** The period's notes as they are right now — not as they were when the sheet
@@ -483,6 +520,7 @@ export function placePin(occ: Occurrence, date: string, startMin: number | null)
   const allDay = startMin === null
   const at = startMin ?? occ.startMin
   if (!occ.series.recurrence) {
+    moveOverride(occ.series.id, occ.date, date)
     updateSeries(occ.series.id, { anchorDate: date, allDay, startMin: at, endMin: at })
     return
   }

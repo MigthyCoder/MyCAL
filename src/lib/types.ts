@@ -20,9 +20,12 @@ export interface Marker {
 }
 
 /**
- * One thing written against a day. A plain jot has no marker; a test or a due
- * date is the same thing wearing a label. A day can hold several — a test and a
- * pset due and something to ask about is an ordinary Wednesday.
+ * One thing written against a day. A day can hold several — a test and a pset
+ * due and something to ask about is an ordinary Wednesday.
+ *
+ * Without a label it's a to-do: anything worth writing down is worth being asked
+ * whether you remembered it. With a label (a test, a due date) it's a fact about
+ * the day instead, and never asks you anything.
  */
 export interface DayNote {
   id: string
